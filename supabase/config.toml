@@ -1,0 +1,13 @@
+project_id = "tvmlgdgdpbntyehpinps"
+
+[functions.notify-order-status]
+verify_jwt = false
+
+[functions.notify-runner-sms]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
+
+[functions.notify-whatsapp]
+verify_jwt = false

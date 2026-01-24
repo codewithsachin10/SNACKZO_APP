@@ -1,0 +1,413 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import 'leaflet/dist/leaflet.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Leaflet marker styles */
+.custom-marker,
+.premium-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Premium Map Animations */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.3);
+    opacity: 0.3;
+  }
+
+  100% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+}
+
+@keyframes bounce-marker {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Leaflet Popup Styling */
+.leaflet-popup-content-wrapper {
+  background: rgba(0, 0, 0, 0.9) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(132, 204, 22, 0.3) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(0, 0, 0, 0.9) !important;
+  border: 1px solid rgba(132, 204, 22, 0.3) !important;
+}
+
+.leaflet-popup-content {
+  margin: 8px 12px !important;
+}
+
+.leaflet-container {
+  font-family: 'Space Grotesk', sans-serif !important;
+}
+
+/* Hide Leaflet attribution */
+.leaflet-control-attribution {
+  display: none !important;
+}
+
+@layer base {
+  :root {
+    /* Light Mode (Daytime Hustle) */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 270 70% 50%;
+    /* Slightly darker purple for visibility on white */
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 180 80% 40%;
+    /* Darker teal */
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 330 80% 60%;
+    /* Darker pink */
+    --accent-foreground: 240 5.9% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 270 70% 50%;
+
+    --radius: 0.75rem;
+
+    --glow-primary: 0 0 15px rgba(120, 50, 200, 0.3);
+    --glow-secondary: 0 0 15px rgba(0, 150, 150, 0.3);
+    --glow-accent: 0 0 15px rgba(200, 50, 100, 0.3);
+
+    --lime: 120 80% 40%;
+    --lime-foreground: 0 0% 98%;
+
+    --cyan: 180 80% 40%;
+    --cyan-foreground: 0 0% 98%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Midnight Neon Design System (Restored) */
+    --background: 240 15% 9%;
+    --foreground: 60 10% 95%;
+
+    --card: 240 15% 13%;
+    --card-foreground: 60 10% 95%;
+
+    --popover: 240 15% 13%;
+    --popover-foreground: 60 10% 95%;
+
+    /* Neon Purple Primary */
+    --primary: 270 100% 65%;
+    --primary-foreground: 60 10% 95%;
+
+    /* Neon Cyan */
+    --secondary: 180 100% 50%;
+    --secondary-foreground: 240 15% 9%;
+
+    /* Neon Pink Accent */
+    --accent: 330 100% 65%;
+    --accent-foreground: 60 10% 95%;
+
+    --muted: 240 10% 20%;
+    --muted-foreground: 240 10% 60%;
+
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 60 10% 95%;
+
+    /* Subtle borders */
+    --border: 240 10% 25%;
+    --input: 240 10% 25%;
+    --ring: 270 100% 65%;
+
+    /* Custom Neon Tokens */
+    --glow-primary: 0 0 20px hsl(270 100% 65% / 0.5);
+    --glow-secondary: 0 0 20px hsl(180 100% 50% / 0.5);
+    --glow-accent: 0 0 20px hsl(330 100% 65% / 0.5);
+
+    /* Neon Lime */
+    --lime: 120 100% 50%;
+    --lime-foreground: 240 15% 9%;
+
+    /* Electric Cyan */
+    --cyan: 180 100% 50%;
+    --cyan-foreground: 240 15% 9%;
+
+    --sidebar-background: 240 15% 11%;
+    --sidebar-foreground: 60 10% 95%;
+    --sidebar-primary: 270 100% 65%;
+    --sidebar-primary-foreground: 60 10% 95%;
+    --sidebar-accent: 330 100% 65%;
+    --sidebar-accent-foreground: 60 10% 95%;
+    --sidebar-border: 240 10% 25%;
+    --sidebar-ring: 270 100% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+
+  /* Neon Button (Adapts to theme) */
+  .neon-btn {
+    @apply rounded-xl font-bold uppercase tracking-wide transition-all duration-200;
+    box-shadow: 0 4px 14px 0 hsl(var(--primary) / 0.3);
+  }
+
+  .neon-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px 0 hsl(var(--primary) / 0.5);
+  }
+
+  .neon-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px 0 hsl(var(--primary) / 0.3);
+  }
+
+  /* Glass Card */
+  .glass-card {
+    @apply rounded-2xl border border-border/50 bg-card/80 backdrop-blur-xl;
+    /* Lighter shadow for light mode, generic css handles dark mode variable swaps */
+    box-shadow: 0 8px 32px 0 hsl(0 0% 0% / 0.1);
+  }
+
+  .dark .glass-card {
+    box-shadow: 0 8px 32px 0 hsl(0 0% 0% / 0.2);
+  }
+
+  .glass-card:hover {
+    @apply border-primary/30;
+    box-shadow: 0 8px 32px 0 hsl(var(--primary) / 0.15);
+  }
+
+  /* Glow Effect */
+  .glow-primary {
+    box-shadow: var(--glow-primary);
+  }
+
+  .glow-secondary {
+    box-shadow: var(--glow-secondary);
+  }
+
+  .glow-accent {
+    box-shadow: var(--glow-accent);
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  }
+
+  /* Marquee Animation */
+  @keyframes marquee {
+    0% {
+      transform: translateX(0%);
+    }
+
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  .animate-marquee {
+    animation: marquee 25s linear infinite;
+  }
+
+  /* Loading Shimmer */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg,
+        hsl(var(--muted)) 25%,
+        hsl(var(--border)) 50%,
+        hsl(var(--muted)) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+@layer utilities {
+  .border-glow {
+    @apply border border-primary/50;
+    box-shadow: inset 0 0 20px hsl(var(--primary) / 0.1), 0 0 20px hsl(var(--primary) / 0.2);
+  }
+
+  /* Text Shadow Glow for Neon Text */
+  .text-shadow-glow {
+    text-shadow: 0 0 10px currentColor;
+  }
+
+  /* Animation Utilities */
+  .animate-pulse-slow {
+    animation: pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-gradient-x {
+    background-size: 200% 200%;
+    animation: gradient-x 3s ease infinite;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .animation-duration-10s {
+    animation-duration: 10s;
+  }
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  @keyframes gradient-x {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes glow-pulse {
+
+    0%,
+    100% {
+      box-shadow: 0 0 20px rgba(255, 165, 0, 0.3);
+    }
+
+    50% {
+      box-shadow: 0 0 40px rgba(255, 165, 0, 0.6);
+    }
+  }
+
+  /* Premium glassmorphism utilities */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .glass-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Premium gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Smooth scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+}
