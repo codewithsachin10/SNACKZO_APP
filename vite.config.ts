@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt'],
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit to allow large chunks
+      },
       manifest: {
         name: 'Snackzo Delivery',
         short_name: 'Snackzo',
