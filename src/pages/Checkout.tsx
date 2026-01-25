@@ -49,26 +49,29 @@ const Checkout = () => {
 
   // Handle SnackzoPay Callback
   useEffect(() => {
+    if (!user) return; // Wait for Auth to hydrate
+
     const status = searchParams.get("status");
     const txnId = searchParams.get("transaction_id");
 
     if (status === "success" && txnId) {
       // Payment success!
-      // We need to trigger handlePlaceOrder with details
-      // Note: We use a timeout to ensure state is hydrated if needed, though usually not needed
-      const providerOrderId = searchParams.get("transaction_id") || `ord_${Date.now()}`;
+      const providerOrderId = txnId;
 
       handlePlaceOrder({
         transaction_id: txnId,
         payment_status: 'paid',
         provider_order_id: providerOrderId
       });
+
+      // Clear URL params to prevent re-triggering on refresh
+      navigate({ search: "" }, { replace: true });
     } else if (status === "failed") {
       toast.error("Payment failed. Please try again.");
     } else if (status === "cancelled") {
       toast.info("Payment cancelled");
     }
-  }, [searchParams]);
+  }, [searchParams, user, navigate]);
 
   // Address Modal State
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
@@ -352,10 +355,15 @@ const Checkout = () => {
   };
 
   async function handlePlaceOrder(paymentDetails?: { transaction_id: string, payment_status: string, provider_order_id: string, saved_method_id?: string }) {
+    if (!user) {
+      toast.error("Authentication session lost. Please log in again.");
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
-      // Build scheduled_for timestamp if scheduling
+      // ... (scheduled order logic)
       let scheduledFor = null;
       if (isScheduled && scheduledDate && scheduledTime) {
         scheduledFor = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
