@@ -8,6 +8,7 @@ export interface SendEmailParams {
     to: string;
     subject: string;
     message: string;
+    html?: string;
 }
 
 export interface SendSMSParams {
@@ -58,10 +59,9 @@ export const triggerSuccessCelebration = () => {
 export const sendNotification = async (type: 'email' | 'sms', params: SendEmailParams | SendSMSParams) => {
     try {
         if (type === 'email') {
-            const { to, subject, message } = params as SendEmailParams;
+            const { to, subject, message, html } = params as SendEmailParams;
 
             if (!RESEND_API_KEY || RESEND_API_KEY === 're_...') {
-                // Simulation Mode
                 console.log("[EMAIL SIMULATION]", { to, subject, message });
                 toast.info("Simulation Mode: Email sent to console");
                 return { success: true };
@@ -74,10 +74,10 @@ export const sendNotification = async (type: 'email' | 'sms', params: SendEmailP
                     'Authorization': `Bearer ${RESEND_API_KEY}`
                 },
                 body: JSON.stringify({
-                    from: 'Snackzo <onboarding@resend.dev>', // Default Resend test email
+                    from: 'Snackzo <onboarding@resend.dev>',
                     to: [to],
                     subject: subject,
-                    html: `<div style="font-family: sans-serif; padding: 20px; color: #111;">
+                    html: html || `<div style="font-family: sans-serif; padding: 20px; color: #111; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 10px;">
                             <h2 style="color: #7c3aed;">Message from Snackzo</h2>
                             <p>${message}</p>
                             <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
@@ -110,8 +110,6 @@ export const sendNotification = async (type: 'email' | 'sms', params: SendEmailP
                     "route": "q",
                     "sender_id": "TXTIND",
                     "message": message,
-                    "language": "english",
-                    "flash": 0,
                     "numbers": to
                 })
             });
@@ -125,7 +123,101 @@ export const sendNotification = async (type: 'email' | 'sms', params: SendEmailP
         throw error;
     }
 };
-// Helper Wrappers for System Events
+
+// --- EMAIL HELPERS ---
+
+export const sendWelcomeEmail = async (email: string, name: string) => {
+    return sendNotification('email', {
+        to: email,
+        subject: `Welcome to Snackzo, ${name.split(' ')[0]}! 🍔`,
+        message: `Welcome to Snackzo! We're excited to serve you.`,
+        html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #f0f0f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <div style="background: #7c3aed; padding: 30px; text-align: center;">
+                    <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to Snackzo!</h1>
+                </div>
+                <div style="padding: 30px; color: #333;">
+                    <p style="font-size: 16px; line-height: 1.6;">Hi ${name},</p>
+                    <p style="font-size: 16px; line-height: 1.6;">We're thrilled to have you join our hostel food community. Now you can order your favorite meals, track deliveries in real-time, and enjoy exclusive midnight deals!</p>
+                    <div style="text-align: center; margin: 40px 0;">
+                        <a href="https://snackzo.tech" style="background: #7c3aed; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">Start Ordering Now</a>
+                    </div>
+                    <p style="font-size: 14px; color: #666;">Happy Binging!<br/>Team Snackzo</p>
+                </div>
+            </div>
+        `
+    });
+};
+
+export const sendOTPEmail = async (email: string, otp: string) => {
+    return sendNotification('email', {
+        to: email,
+        subject: `Your Snackzo Verification Code: ${otp}`,
+        message: `Your verification code is ${otp}`,
+        html: `
+            <div style="font-family: sans-serif; max-width: 500px; margin: auto; border: 1px solid #eee; border-radius: 16px; padding: 40px; text-align: center;">
+                <h2 style="color: #111;">Verify Your Account</h2>
+                <p style="color: #666;">Use the code below to complete your sign-in. This code will expire in 10 minutes.</p>
+                <div style="background: #f4f1ff; border: 2px dashed #7c3aed; border-radius: 12px; padding: 20px; margin: 30px 0;">
+                    <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #7c3aed;">${otp}</span>
+                </div>
+                <p style="font-size: 12px; color: #999;">If you didn't request this code, please ignore this email.</p>
+            </div>
+        `
+    });
+};
+
+export const sendOrderReceiptEmail = async (email: string, orderDetails: any) => {
+    const { orderId, totalAmount, items, userName } = orderDetails;
+
+    const itemsHtml = items.map((item: any) => `
+        <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 12px 0; color: #333;">${item.name} x ${item.quantity}</td>
+            <td style="padding: 12px 0; text-align: right; color: #111;">₹${item.price * item.quantity}</td>
+        </tr>
+    `).join('');
+
+    return sendNotification('email', {
+        to: email,
+        subject: `Your Receipt for Order #${orderId.slice(0, 8)} 🧾`,
+        message: `Confirming your order from Snackzo.`,
+        html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 30px; border: 1px solid #e5e5e5; border-radius: 16px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h2 style="color: #7c3aed; margin: 0;">SNACKZO RECEIPT</h2>
+                    <p style="color: #666; font-size: 12px;">Order ID: ${orderId.toUpperCase()}</p>
+                </div>
+                <p style="font-size: 16px;">Hi ${userName},</p>
+                <p style="color: #666;">Thanks for ordering! We've received your payment and our kitchen is already buzzing.</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin: 25px 0;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #7c3aed;">
+                            <th style="padding: 10px 0; text-align: left; font-size: 12px; color: #7c3aed;">ITEM</th>
+                            <th style="padding: 10px 0; text-align: right; font-size: 12px; color: #7c3aed;">PRICE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td style="padding: 20px 0 0; font-weight: bold; font-size: 18px;">TOTAL AMOUNT</td>
+                            <td style="padding: 20px 0 0; text-align: right; font-weight: bold; font-size: 18px; color: #7c3aed;">₹${totalAmount}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                <div style="background: #f9fafb; border-radius: 8px; padding: 15px; margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
+                    Need help? Contact us at support@snackzo.tech
+                </div>
+            </div>
+        `
+    });
+};
+
+// --- EXISTING SMS HELPERS ---
+
 export const notifyOrderConfirmed = async (phone: string, orderId: string, amount: number) => {
     return sendNotification('sms', {
         to: phone,

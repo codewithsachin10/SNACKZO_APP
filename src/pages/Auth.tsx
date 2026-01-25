@@ -8,15 +8,10 @@ import {
   ArrowLeft, Zap, ShoppingCart, Shield, Lock, Eye, EyeOff, Key, Check, Printer
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import emailjs from '@emailjs/browser';
+import { notifyOrderConfirmed, sendOTPEmail, sendWelcomeEmail } from "@/utils/notificationService";
 import confetti from 'canvas-confetti';
 
-// ============================================================
-// EMAILJS CONFIGURATION
-// ============================================================
-const EMAILJS_SERVICE_ID = "service_tfrfthm";
-const EMAILJS_TEMPLATE_ID = "template_yak6xed";
-const EMAILJS_PUBLIC_KEY = "hkKU_ePnPUDoJKM5K";
+// EmailJS configuration removed in favor of Resend via NotificationService
 
 const Auth = () => {
   // --- MODE: signup or signin ---
@@ -215,14 +210,9 @@ const Auth = () => {
         { duration: 30000 }
       );
     } else {
-      // Production mode: Send via EmailJS
+      // Production mode: Send via Resend
       try {
-        await emailjs.send(
-          EMAILJS_SERVICE_ID,
-          EMAILJS_TEMPLATE_ID,
-          { to_email: email, to_name: fullName, otp_code: newOtp, message: `Your OTP is: ${newOtp}. Valid for 5 minutes.` },
-          EMAILJS_PUBLIC_KEY
-        );
+        await sendOTPEmail(email, newOtp);
         toast.success(`OTP sent to ${email}`);
       } catch (error) {
         console.log("📧 Email failed, showing OTP in popup");
@@ -324,6 +314,12 @@ const Auth = () => {
         toast.info("Account created! Profile will be set up on first login.");
       } else {
         toast.success("Account created successfully! 🎉");
+        // Send Welcome Email
+        try {
+          await sendWelcomeEmail(email, fullName);
+        } catch (welcomeErr) {
+          console.error("Welcome email failed", welcomeErr);
+        }
       }
 
       // Auto sign in after successful signup
@@ -390,8 +386,7 @@ const Auth = () => {
 
     // Also try to send via email
     try {
-      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID,
-        { to_email: email, to_name: fullName, otp_code: newOtp }, EMAILJS_PUBLIC_KEY);
+      await sendOTPEmail(email, newOtp);
       toast.success("OTP also sent to your email!");
     } catch {
       console.log("Email send failed, OTP shown in popup");

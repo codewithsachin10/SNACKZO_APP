@@ -10,7 +10,7 @@ import { ExpressDeliveryBadge, ExpressDeliveryInfo } from "@/components/ExpressD
 import { PaymentMethodSelector } from "@/components/PaymentMethodSelector";
 import { SavedPaymentMethods } from "@/components/SavedPaymentMethods";
 import { BNPLSelector } from "@/components/BNPLSelector";
-import { notifyOrderConfirmed } from "@/utils/notificationService";
+import { notifyOrderConfirmed, sendOrderReceiptEmail } from "@/utils/notificationService";
 import OrderCelebration from "@/components/ui/OrderCelebration";
 import AddressSelectorModal from "@/components/AddressSelectorModal";
 
@@ -530,12 +530,25 @@ const Checkout = () => {
           });
       }
 
-      // Send Notifications (Email + WhatsApp + SMS) - Unified
-      await notifyOrderConfirmed(
-        user.email || "",
-        profile?.phone || "",
-        { id: order.id, total: total }
-      );
+      // Send Notifications (Bill/Receipt + SMS)
+      try {
+        await notifyOrderConfirmed(
+          profile?.phone || "",
+          order.id,
+          total
+        );
+
+        if (user.email) {
+          await sendOrderReceiptEmail(user.email, {
+            orderId: order.id,
+            totalAmount: total,
+            userName: profile?.full_name || user.email.split('@')[0],
+            items: items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price }))
+          });
+        }
+      } catch (notifErr) {
+        console.error("Notification Error:", notifErr);
+      }
 
       clearCart();
       toast.success("Order placed successfully!");
