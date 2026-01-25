@@ -94,6 +94,10 @@ export const sendNotification = async (type: 'email' | 'sms', params: SendEmailP
         else {
             const { to, message } = params as SendSMSParams;
 
+            // SMS Integration temporarily disabled by request
+            console.log("[SMS DISABLED]", { to, message });
+            return { success: true };
+
             if (!SMS_API_KEY) {
                 console.log("[SMS SIMULATION]", { to, message });
                 toast.info("Simulation Mode: SMS sent to console");
@@ -264,7 +268,34 @@ export const notifyOrderConfirmed = async (phone: string, orderId: string, amoun
         to: phone,
         message: `Snackzo: Order #${orderId.slice(0, 6)} confirmed for Rs.${amount}. We are packing it now! 🍔`
     });
-    toast.success("Order confirmed!", { description: "We've sent a confirmation to your phone and email (check spam) 🛵" });
+    // This toast now accurately reflects that SMS is sent
+    toast.success("Order confirmed!", { description: "We've sent a confirmation to your phone 📱" });
+    return result;
+};
+
+export const sendOrderConfirmationEmail = async (email: string, orderId: string, name: string) => {
+    const result = await sendNotification('email', {
+        to: email,
+        subject: `Order Confirmed: #${orderId.slice(0, 8)} 🍔`,
+        message: `Your order from Snackzo is confirmed!`,
+        html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 20px; overflow: hidden;">
+                <div style="background: #7c3aed; padding: 40px; text-align: center;">
+                    <h1 style="color: white; margin: 0; font-size: 24px;">Order Confirmed!</h1>
+                    <p style="color: #ddd; margin-top: 10px;">ID: #${orderId.toUpperCase()}</p>
+                </div>
+                <div style="padding: 40px; color: #333; text-align: center;">
+                    <div style="font-size: 60px; margin-bottom: 20px;">🔥</div>
+                    <h2 style="margin-top: 0;">Hi ${name}, your fuel is on the way!</h2>
+                    <p style="font-size: 16px; line-height: 1.6; color: #666;">Our kitchen has received your order and we're starting to pack it right now. You can track your rider in real-time through the app.</p>
+                    <div style="margin-top: 40px;">
+                        <a href="https://snackzo.tech/orders" style="background: #7c3aed; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold;">Track Delivery 🛵</a>
+                    </div>
+                </div>
+            </div>
+        `
+    });
+    toast.success("Order confirmation sent!", { description: "Check your email for your order status 📧" });
     return result;
 };
 

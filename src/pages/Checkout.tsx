@@ -10,7 +10,7 @@ import { ExpressDeliveryBadge, ExpressDeliveryInfo } from "@/components/ExpressD
 import { PaymentMethodSelector } from "@/components/PaymentMethodSelector";
 import { SavedPaymentMethods } from "@/components/SavedPaymentMethods";
 import { BNPLSelector } from "@/components/BNPLSelector";
-import { notifyOrderConfirmed, sendOrderReceiptEmail } from "@/utils/notificationService";
+import { notifyOrderConfirmed, sendOrderReceiptEmail, sendOrderConfirmationEmail } from "@/utils/notificationService";
 import OrderCelebration from "@/components/ui/OrderCelebration";
 import AddressSelectorModal from "@/components/AddressSelectorModal";
 
@@ -301,7 +301,7 @@ const Checkout = () => {
         description: `Order for ${items.length} item${items.length > 1 ? 's' : ''}`,
         order_id: orderData.id,
         handler: async function (response: any) {
-          // 3. On Success, Place Order in DB
+          // Finish processing logic
           await handlePlaceOrder({
             transaction_id: response.razorpay_payment_id,
             payment_status: 'paid',
@@ -331,13 +331,7 @@ const Checkout = () => {
       };
 
       const rzp1 = new (window as any).Razorpay(options);
-      rzp1.on('payment.success', async (response: any) => {
-        await handlePlaceOrder({
-          transaction_id: response.razorpay_payment_id,
-          payment_status: 'paid',
-          provider_order_id: response.razorpay_order_id
-        });
-      });
+      // Removed duplicate 'payment.success' listener as it's handled in 'handler'
 
       rzp1.on('payment.error', (error: any) => {
         console.error("Payment error:", error);
@@ -546,11 +540,21 @@ const Checkout = () => {
           total
         );
 
+        if (profile?.phone) {
+          await notifyOrderConfirmed(profile.phone, order.id, total);
+        }
+
         if (user.email) {
+          const userName = profile?.full_name || user.email.split('@')[0];
+
+          // 1. Send Order Confirmation (Focus on "Food is Coming")
+          await sendOrderConfirmationEmail(user.email, order.id, userName);
+
+          // 2. Send Digital Receipt (Focus on "The Bill")
           await sendOrderReceiptEmail(user.email, {
             orderId: order.id,
             totalAmount: total,
-            userName: profile?.full_name || user.email.split('@')[0],
+            userName: userName,
             items: items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price }))
           });
         }
@@ -558,12 +562,15 @@ const Checkout = () => {
         console.error("Notification Error:", notifErr);
       }
 
-      clearCart();
-      toast.success("Order placed successfully!");
-
-      // Trigger Celebration
+      // Set states for celebration BEFORE clearing cart to prevent premature redirect
       setCreatedOrderId(order.id);
       setShowCelebration(true);
+
+      // Notify user
+      toast.success("Order placed successfully!");
+
+      // Final cleanup
+      clearCart();
 
     } catch (error) {
       console.error("Order error:", error);
