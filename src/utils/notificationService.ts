@@ -127,7 +127,7 @@ export const sendNotification = async (type: 'email' | 'sms', params: SendEmailP
 // --- EMAIL HELPERS ---
 
 export const sendWelcomeEmail = async (email: string, name: string) => {
-    return sendNotification('email', {
+    const result = await sendNotification('email', {
         to: email,
         subject: `Welcome to Snackzo, ${name.split(' ')[0]}! 🍔`,
         message: `Welcome to Snackzo! We're excited to serve you.`,
@@ -147,10 +147,12 @@ export const sendWelcomeEmail = async (email: string, name: string) => {
             </div>
         `
     });
+    toast.success("Welcome email sent!", { description: "Please check your inbox (and spam folder) to start your journey! 🍔" });
+    return result;
 };
 
 export const sendOTPEmail = async (email: string, otp: string) => {
-    return sendNotification('email', {
+    const result = await sendNotification('email', {
         to: email,
         subject: `Your Snackzo Verification Code: ${otp}`,
         message: `Your verification code is ${otp}`,
@@ -165,6 +167,8 @@ export const sendOTPEmail = async (email: string, otp: string) => {
             </div>
         `
     });
+    toast.success("OTP sent to your email!", { description: "Check your inbox or spam folder for the verification code 🔐" });
+    return result;
 };
 
 export const sendOrderReceiptEmail = async (email: string, orderDetails: any) => {
@@ -177,7 +181,7 @@ export const sendOrderReceiptEmail = async (email: string, orderDetails: any) =>
         </tr>
     `).join('');
 
-    return sendNotification('email', {
+    const result = await sendNotification('email', {
         to: email,
         subject: `Your Receipt for Order #${orderId.slice(0, 8)} 🧾`,
         message: `Confirming your order from Snackzo.`,
@@ -214,15 +218,54 @@ export const sendOrderReceiptEmail = async (email: string, orderDetails: any) =>
             </div>
         `
     });
+
+    toast.success("Order receipt sent!", { description: "Check your email (and spam) for the digital bill 🧾" });
+    return result;
+};
+
+export const sendPasswordResetEmail = async (email: string, resetLink: string) => {
+    const result = await sendNotification('email', {
+        to: email,
+        subject: `Reset Your Snackzo Password 🔐`,
+        message: `Click the link to reset your password: ${resetLink}`,
+        html: `
+            <div style="font-family: sans-serif; max-width: 500px; margin: auto; border: 1px solid #eee; border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+                <div style="background: #7c3aed; width: 60px; hieght: 60px; border-radius: 15px; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px;">
+                     <span style="font-size: 30px;">🔑</span>
+                </div>
+                <h2 style="color: #111; margin-bottom: 15px;">Password Reset Request</h2>
+                <p style="color: #666; line-height: 1.6;">We received a request to reset your Snackzo password. No worries, it happens to the best of us!</p>
+                
+                <div style="margin: 35px 0;">
+                    <a href="${resetLink}" style="background: #7c3aed; color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 16px; display: inline-block; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);">Reset Password Now</a>
+                </div>
+
+                <div style="text-align: left; background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 30px;">
+                    <p style="font-size: 12px; font-weight: bold; color: #111; margin-top: 0;">Next Steps:</p>
+                    <ul style="font-size: 12px; color: #666; padding-left: 15px; margin-bottom: 0;">
+                        <li>Click the purple button above</li>
+                        <li>Enter your new secure password</li>
+                        <li>Log back in and grab some snacks!</li>
+                    </ul>
+                </div>
+
+                <p style="font-size: 11px; color: #999; margin-top: 30px;">If you didn't request this, you can safely ignore this email. Your password will remain unchanged.</p>
+            </div>
+        `
+    });
+    toast.success("Reset link sent!", { description: "Please check your inbox (and spam) for the password link 📧" });
+    return result;
 };
 
 // --- EXISTING SMS HELPERS ---
 
 export const notifyOrderConfirmed = async (phone: string, orderId: string, amount: number) => {
-    return sendNotification('sms', {
+    const result = await sendNotification('sms', {
         to: phone,
         message: `Snackzo: Order #${orderId.slice(0, 6)} confirmed for Rs.${amount}. We are packing it now! 🍔`
     });
+    toast.success("Order confirmed!", { description: "We've sent a confirmation to your phone and email (check spam) 🛵" });
+    return result;
 };
 
 export const notifyOrderOutForDelivery = async (phone: string, runnerName: string) => {

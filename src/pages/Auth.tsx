@@ -8,14 +8,14 @@ import {
   ArrowLeft, Zap, ShoppingCart, Shield, Lock, Eye, EyeOff, Key, Check, Printer
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { notifyOrderConfirmed, sendOTPEmail, sendWelcomeEmail } from "@/utils/notificationService";
+import { notifyOrderConfirmed, sendOTPEmail, sendWelcomeEmail, sendPasswordResetEmail } from "@/utils/notificationService";
 import confetti from 'canvas-confetti';
 
 // EmailJS configuration removed in favor of Resend via NotificationService
 
 const Auth = () => {
-  // --- MODE: signup or signin ---
-  const [mode, setMode] = useState<'signup' | 'signin'>('signup');
+  // --- MODE: signup, signin, or forgot ---
+  const [mode, setMode] = useState<'signup' | 'signin' | 'forgot'>('signup');
 
   // --- STEP MANAGEMENT (for signup) ---
   // 1: Name, 2: Phone, 3: Email, 4: OTP, 5: Password, 6: Preview
@@ -213,7 +213,6 @@ const Auth = () => {
       // Production mode: Send via Resend
       try {
         await sendOTPEmail(email, newOtp);
-        toast.success(`OTP sent to ${email}`);
       } catch (error) {
         console.log("📧 Email failed, showing OTP in popup");
         toast.success(
@@ -313,8 +312,7 @@ const Auth = () => {
         // Don't fail the signup - profile trigger might handle it
         toast.info("Account created! Profile will be set up on first login.");
       } else {
-        toast.success("Account created successfully! 🎉");
-        // Send Welcome Email
+        // Send Welcome Email (Toast is handled inside sendWelcomeEmail)
         try {
           await sendWelcomeEmail(email, fullName);
         } catch (welcomeErr) {
@@ -387,7 +385,6 @@ const Auth = () => {
     // Also try to send via email
     try {
       await sendOTPEmail(email, newOtp);
-      toast.success("OTP also sent to your email!");
     } catch {
       console.log("Email send failed, OTP shown in popup");
     }
@@ -650,7 +647,7 @@ const Auth = () => {
         </motion.form>
       );
 
-      case 6: return <PrintPreview />;
+      case 6: return PrintPreview();
     }
   };
 
@@ -682,6 +679,37 @@ const Auth = () => {
     }
   };
 
+  // --- FORGOT PASSWORD HANDLER ---
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValidEmail) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const resetLink = `${window.location.origin}/auth?mode=reset`; // Standard pattern, though Supabase sends its own
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      // We manually trigger our branded email as well for Premium experience
+      // Note: Real production should usually trust Supabase built-in delivery if reliability is preferred over custom CSS
+      await sendPasswordResetEmail(email, `${window.location.origin}/reset-password`);
+
+      toast.success("Reset instructions dispatched!");
+      setMode('signin');
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send reset link");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // --- SIGN IN FORM ---
   const SignInForm = () => {
     const inputBase = "w-full bg-muted/30 border border-input rounded-xl py-4 px-4 text-lg font-medium focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none";
@@ -703,7 +731,7 @@ const Auth = () => {
         </div>
 
         <div className="flex justify-end">
-          <a href="/forgot-password" className="text-sm text-primary hover:underline font-medium">Forgot password?</a>
+          <button type="button" onClick={() => setMode('forgot')} className="text-sm text-primary hover:underline font-medium">Forgot password?</button>
         </div>
 
         <button disabled={isLoading} className={btnBase}>
@@ -724,6 +752,31 @@ const Auth = () => {
     );
   };
 
+  // --- FORGOT PASSWORD FORM ---
+  const ForgotPasswordForm = () => {
+    const inputBase = "w-full bg-muted/30 border border-input rounded-xl py-4 px-4 text-lg font-medium focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none";
+    const btnBase = "w-full bg-primary text-primary-foreground font-bold text-lg py-4 rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition-all active:scale-[0.98]";
+
+    return (
+      <motion.form key="forgot" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} onSubmit={handleForgotPassword} className="space-y-6">
+        <p className="text-sm text-muted-foreground text-center">Enter your email and we'll send you a secure link to reset your password.</p>
+        <div className="relative">
+          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={`${inputBase} pl-12`} placeholder="Email address" autoFocus />
+        </div>
+
+        <button disabled={isLoading || !isValidEmail} className={btnBase}>
+          {isLoading ? "Sending Link..." : "Send Reset Instructions"}
+          <ChevronRight size={20} />
+        </button>
+
+        <button type="button" onClick={() => setMode('signin')} className="w-full text-sm text-primary font-bold hover:underline py-2">
+          Back to Sign In
+        </button>
+      </motion.form>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Left Panel */}
@@ -738,8 +791,8 @@ const Auth = () => {
 
       {/* Right Panel */}
       <div className="flex-1 flex flex-col justify-center p-6 md:p-12 lg:p-20 relative bg-card min-h-screen">
-        <BackButton />
-        <HelpButton />
+        {BackButton()}
+        {HelpButton()}
 
         <div className="max-w-md w-full mx-auto">
           {/* Mode Toggle Tabs */}
@@ -762,12 +815,18 @@ const Auth = () => {
             <>
               <h2 className="text-2xl md:text-3xl font-bold mb-2">Welcome back! 👋</h2>
               <p className="text-muted-foreground mb-8">Sign in to continue ordering</p>
-              <AnimatePresence mode="wait"><SignInForm /></AnimatePresence>
+              <AnimatePresence mode="wait">{SignInForm()}</AnimatePresence>
+            </>
+          ) : mode === 'forgot' ? (
+            <>
+              <h2 className="text-2xl md:text-3xl font-bold mb-2">Recover Password 🔐</h2>
+              <p className="text-muted-foreground mb-8">Let's get you back into your account</p>
+              <AnimatePresence mode="wait">{ForgotPasswordForm()}</AnimatePresence>
             </>
           ) : (
             <>
-              {step < 6 && <ProgressIndicator />}
-              {step < 6 && <StepLabel />}
+              {step < 6 && ProgressIndicator()}
+              {step < 6 && StepLabel()}
 
               {step < 6 && (
                 <>
@@ -789,7 +848,7 @@ const Auth = () => {
               )}
 
               <AnimatePresence mode="wait">{renderStep()}</AnimatePresence>
-              {step < 6 && <Benefits />}
+              {step < 6 && Benefits()}
             </>
           )}
         </div>
