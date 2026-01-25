@@ -58,6 +58,14 @@ const DEFAULT_FEATURES: Omit<FeatureToggle, "id" | "updated_at">[] = [
     is_enabled: false,
     icon: "demo_otp_mode",
     category: "developer"
+  },
+  {
+    feature_name: "email_simulation",
+    display_name: "Email Simulation Mode",
+    description: "If enabled, emails are only logged to console. Disable this for real mail integration.",
+    is_enabled: false,
+    icon: "demo_otp_mode",
+    category: "developer"
   }
 ];
 

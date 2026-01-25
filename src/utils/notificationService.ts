@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
+import { supabase } from "@/integrations/supabase/client";
 
 const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY;
 const SMS_API_KEY = import.meta.env.VITE_SMS_API_KEY;
@@ -61,9 +62,22 @@ export const sendNotification = async (type: 'email' | 'sms', params: SendEmailP
         if (type === 'email') {
             const { to, subject, message, html } = params as SendEmailParams;
 
-            if (!RESEND_API_KEY || RESEND_API_KEY === 're_...') {
+            // Check if email simulation is enabled in database
+            const { data: toggle } = await supabase
+                .from('feature_toggles' as any)
+                .select('is_enabled')
+                .eq('feature_name', 'email_simulation')
+                .single();
+
+            const isSimulationMode = toggle?.is_enabled ?? false;
+
+            if (!RESEND_API_KEY || isSimulationMode) {
                 console.log("[EMAIL SIMULATION]", { to, subject, message });
-                toast.info("Simulation Mode: Email sent to console");
+                if (isSimulationMode) {
+                    toast.info("Simulation Mode Enabled", { description: "Email logged to console instead of sending." });
+                } else {
+                    toast.error("Missing Resend API Key", { description: "Please configure VITE_RESEND_API_KEY in .env" });
+                }
                 return { success: true };
             }
 
