@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { notifyOrderOutForDelivery } from "@/utils/smsService";
 import {
   Package, Phone, MapPin, Check, Truck, RefreshCw, User, LogOut, Home, TrendingUp, History, MessageCircle, Navigation, CheckCheck, UserPlus, X,
   Timer, Coffee, AlertTriangle, ShieldAlert, IndianRupee, ExternalLink, QrCode
@@ -572,12 +573,18 @@ const RunnerDashboard = () => {
 
     toast.success(newStatus === "delivered" ? "Order delivered! 🎉" : "Order marked out for delivery");
 
+    // SMS Notification
+    const orderObj = orders.find(o => o.id === orderId);
+    if (orderObj?.profile?.phone && runner?.name && newStatus === "out_for_delivery") {
+      notifyOrderOutForDelivery(orderObj.profile.phone, runner.name);
+    }
+
     try {
       await supabase.functions.invoke("notify-order-status", {
         body: { orderId, newStatus }
       });
     } catch (e) {
-      console.error("Failed to send notification:", e);
+      console.warn("Edge Function Notification failed (Using local SMS fallback):", e);
     }
 
     fetchOrders();

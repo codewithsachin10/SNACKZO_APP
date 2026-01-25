@@ -11,6 +11,7 @@ import { PaymentMethodSelector } from "@/components/PaymentMethodSelector";
 import { SavedPaymentMethods } from "@/components/SavedPaymentMethods";
 import { BNPLSelector } from "@/components/BNPLSelector";
 import { initEmailService, sendOrderEmail } from "@/utils/emailService";
+import { notifyOrderPlaced } from "@/utils/smsService";
 import OrderCelebration from "@/components/ui/OrderCelebration";
 import AddressSelectorModal from "@/components/AddressSelectorModal";
 
@@ -546,6 +547,11 @@ const Checkout = () => {
           link: `${window.location.origin}/orders/${order.id}`
         }
       );
+
+      // Send SMS
+      if (profile?.phone) {
+        notifyOrderPlaced(profile.phone, order.id, total);
+      }
 
       clearCart();
       toast.success("Order placed successfully!");

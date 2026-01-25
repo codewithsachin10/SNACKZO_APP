@@ -1,15 +1,16 @@
 import emailjs from "@emailjs/browser";
 import { toast } from "sonner";
 
-// KEYS FROM YOUR EMAILJS DASHBOARD
-// You need to fill these in!
-const SERVICE_ID = "service_ezycm0p"; // Found this in your screenshot tab title! ✅
-const PUBLIC_KEY = "YOUR_PUBLIC_KEY_HERE"; // Go to Account -> Public Key
-const ORDER_TEMPLATE_ID = "template_xxxxxxx"; // Create a new template for orders!
+// EmailJS Configuration (Set these in .env)
+const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || "service_default";
+const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+const ORDER_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
 
 export const initEmailService = () => {
-    if (PUBLIC_KEY && PUBLIC_KEY !== "YOUR_PUBLIC_KEY_HERE") {
+    if (PUBLIC_KEY) {
         emailjs.init(PUBLIC_KEY);
+    } else {
+        console.warn("EmailJS Public Key missing in .env");
     }
 };
 
