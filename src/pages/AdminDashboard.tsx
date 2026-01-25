@@ -25,6 +25,7 @@ import SupportManagement from "@/components/admin/SupportManagement";
 import LiveSupport from "@/components/admin/LiveSupport";
 import DatabaseManager from "@/components/admin/DatabaseManager";
 import SnackzoPayManagement from "@/components/admin/SnackzoPayManagement";
+import NotificationCenter from "@/components/admin/NotificationCenter";
 
 import { AdminSidebar, AdminTab } from "@/components/admin/AdminSidebar";
 
@@ -600,6 +601,7 @@ const AdminDashboard = () => {
           {activeTab === "snackzopay" && <SnackzoPayManagement />}
           {activeTab === "support" && <SupportManagement />}
           {activeTab === "live-chat" && <LiveSupport />}
+          {activeTab === "notifications" && <NotificationCenter />}
 
         </div>
       </main>

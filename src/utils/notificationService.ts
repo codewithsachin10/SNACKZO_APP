@@ -27,8 +27,9 @@ export const sendNotification = async (
     console.log(`[Notification] Sending ${channel} to ${payload.to}...`);
 
     try {
+        const apiBase = window.location.hostname === 'localhost' ? 'https://snackzo.tech' : '';
         // Call Vercel Serverless Function (/api/notify)
-        const response = await fetch('/api/notify', {
+        const response = await fetch(`${apiBase}/api/notify`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

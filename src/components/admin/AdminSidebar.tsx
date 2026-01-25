@@ -1,6 +1,6 @@
 import {
     LayoutDashboard, ShoppingBag, Package, List, Truck,
-    BarChart3, LineChart, Users, TrendingUp, Zap,
+    BarChart3, LineChart, Users, TrendingUp, Zap, Mail,
     Bell, Wallet, AlertTriangle, Settings, LogOut, ToggleRight, Activity, HelpCircle, Database, CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ export type AdminTab =
     | "promotions"
     | "announcements"
     | "live-chat"
+    | "notifications"
     | "wallet"
     | "snackzopay"
     | "alerts"
@@ -53,6 +54,7 @@ const menuItems: { id: AdminTab; label: string; icon: any; badge?: string }[] = 
     { id: "promotions", label: "Promos", icon: Zap },
     { id: "announcements", label: "Notify", icon: Bell },
     { id: "live-chat", label: "Live Chat", icon: HelpCircle, badge: "NEW" },
+    { id: "notifications", label: "Mail & SMS", icon: Mail, badge: "NEW" },
     { id: "wallet", label: "Wallet", icon: Wallet },
     { id: "snackzopay", label: "SnackzoPay", icon: CreditCard, badge: "NEW" },
     { id: "alerts", label: "Alerts", icon: AlertTriangle },
