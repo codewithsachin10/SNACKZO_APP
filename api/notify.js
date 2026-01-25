@@ -82,7 +82,7 @@ export default async function handler(req, res) {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    "route": "v3",
+                    "route": "q",
                     "sender_id": "TXTIND",
                     "message": message,
                     "language": "english",
