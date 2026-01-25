@@ -23,6 +23,8 @@ import { AdminFeatureControls } from "@/components/admin/FeatureControls";
 import SystemHealth from "@/components/admin/SystemHealth";
 import SupportManagement from "@/components/admin/SupportManagement";
 import LiveSupport from "@/components/admin/LiveSupport";
+import DatabaseManager from "@/components/admin/DatabaseManager";
+import SnackzoPayManagement from "@/components/admin/SnackzoPayManagement";
 
 import { AdminSidebar, AdminTab } from "@/components/admin/AdminSidebar";
 
@@ -590,10 +592,12 @@ const AdminDashboard = () => {
           {activeTab === "customer-insights" && <CustomerInsights />}
           {activeTab === "announcements" && <AnnouncementsManager />}
           {activeTab === "features" && <AdminFeatureControls />}
+          {activeTab === "database" && <DatabaseManager />}
           {activeTab === "system-health" && <SystemHealth />}
           {activeTab === "settings" && <StoreSettings />}
           {activeTab === "runners" && <RunnerManagement />}
           {activeTab === "wallet" && <WalletManagement />}
+          {activeTab === "snackzopay" && <SnackzoPayManagement />}
           {activeTab === "support" && <SupportManagement />}
           {activeTab === "live-chat" && <LiveSupport />}
 

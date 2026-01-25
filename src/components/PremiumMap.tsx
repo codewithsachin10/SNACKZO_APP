@@ -3,16 +3,16 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, CircleMarker 
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Navigation2, 
-  MapPin, 
-  Package, 
-  Home, 
-  Bike, 
-  Route, 
-  Timer, 
-  Maximize2, 
-  Minimize2, 
+import {
+  Navigation2,
+  MapPin,
+  Package,
+  Home,
+  Bike,
+  Route,
+  Timer,
+  Maximize2,
+  Minimize2,
   Navigation,
   ExternalLink,
   Phone,
@@ -43,6 +43,13 @@ const pulseKeyframes = `
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
 }
+@keyframes dash-flow {
+  to { stroke-dashoffset: -30; }
+}
+.anim-dash-flow {
+  animation: dash-flow 1s linear infinite;
+  filter: drop-shadow(0 0 2px rgba(255,255,255,0.8));
+}
 `;
 
 // Inject styles
@@ -55,27 +62,27 @@ if (typeof document !== 'undefined') {
 // Premium custom marker icons
 const createPremiumIcon = (type: 'store' | 'runner' | 'destination') => {
   const configs = {
-    store: { 
-      bg: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', 
-      icon: '🏪', 
+    store: {
+      bg: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+      icon: '🏪',
       shadow: 'rgba(59, 130, 246, 0.5)',
       label: 'Store'
     },
-    runner: { 
-      bg: 'linear-gradient(135deg, #84CC16 0%, #65A30D 100%)', 
-      icon: '🛵', 
+    runner: {
+      bg: 'linear-gradient(135deg, #84CC16 0%, #65A30D 100%)',
+      icon: '🛵',
       shadow: 'rgba(132, 204, 22, 0.5)',
       label: 'Runner'
     },
-    destination: { 
-      bg: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)', 
-      icon: '📍', 
+    destination: {
+      bg: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
+      icon: '📍',
       shadow: 'rgba(249, 115, 22, 0.5)',
       label: 'You'
     }
   };
   const config = configs[type];
-  
+
   return L.divIcon({
     className: "premium-marker",
     html: `
@@ -142,15 +149,15 @@ function generateCurvedRoute(start: [number, number], end: [number, number], num
   const points: [number, number][] = [];
   const midLat = (start[0] + end[0]) / 2;
   const midLng = (start[1] + end[1]) / 2;
-  
+
   // Add slight curve offset
   const dx = end[1] - start[1];
   const dy = end[0] - start[0];
   const curveOffset = Math.sqrt(dx * dx + dy * dy) * 0.15;
-  
+
   const controlLat = midLat + (Math.random() - 0.5) * curveOffset;
   const controlLng = midLng + (Math.random() - 0.5) * curveOffset;
-  
+
   for (let i = 0; i <= numPoints; i++) {
     const t = i / numPoints;
     // Quadratic bezier curve
@@ -158,7 +165,7 @@ function generateCurvedRoute(start: [number, number], end: [number, number], num
     const lng = (1 - t) * (1 - t) * start[1] + 2 * (1 - t) * t * controlLng + t * t * end[1];
     points.push([lat, lng]);
   }
-  
+
   return points;
 }
 
@@ -191,10 +198,10 @@ export function PremiumLiveMap({
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street');
   const [showDetails, setShowDetails] = useState(true);
 
-  const runnerPos: [number, number] = runnerLocation 
+  const runnerPos: [number, number] = runnerLocation
     ? [runnerLocation.latitude, runnerLocation.longitude]
     : [storeLocation.lat + 0.005, storeLocation.lng + 0.003];
-  
+
   const destPos: [number, number] = destinationLocation
     ? [destinationLocation.lat, destinationLocation.lng]
     : [storeLocation.lat + 0.012, storeLocation.lng + 0.008];
@@ -205,17 +212,17 @@ export function PremiumLiveMap({
     const lon1 = runnerPos[1];
     const lat2 = destPos[0];
     const lon2 = destPos[1];
-    
+
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const dist = R * c;
-    
+
     setDistance(dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`);
     const etaMinutes = Math.max(1, Math.round((dist / 15) * 60));
     setEta(`${etaMinutes} min`);
@@ -234,16 +241,34 @@ export function PremiumLiveMap({
     satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
   };
 
+  // Fix map size on mount/resize
+  function MapResizer() {
+    const map = useMap();
+    useEffect(() => {
+      const resizeObserver = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      const container = map.getContainer();
+      resizeObserver.observe(container);
+
+      // Force initial resize
+      setTimeout(() => map.invalidateSize(), 100);
+
+      return () => resizeObserver.disconnect();
+    }, [map]);
+    return null;
+  }
+
   return (
-    <motion.div 
+    <motion.div
       layout
       className={cn(
-        "relative overflow-hidden rounded-2xl border-2 border-lime/30 shadow-2xl shadow-lime/10 transition-all duration-500",
-        isExpanded ? "fixed inset-4 z-50" : "h-72"
+        "relative overflow-hidden rounded-2xl border-2 border-lime/30 shadow-2xl shadow-lime/10 transition-all duration-500 bg-zinc-900",
+        isExpanded ? "fixed inset-0 z-[50]" : "h-80 w-full"
       )}
     >
       {/* Glassmorphic Header */}
-      <div className="absolute top-0 left-0 right-0 z-[1000] backdrop-blur-md bg-black/40 border-b border-white/10">
+      <div className="absolute top-0 left-0 right-0 z-[400] backdrop-blur-md bg-black/40 border-b border-white/10">
         <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -252,10 +277,10 @@ export function PremiumLiveMap({
             </div>
             <div>
               <h3 className="font-black text-white text-sm uppercase tracking-wider">Live Tracking</h3>
-              <p className="text-[10px] text-lime font-medium">Real-time updates</p>
+              <p className="text-[10px] text-lime font-medium">Runner is on the way</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => setMapStyle(mapStyle === 'street' ? 'satellite' : 'street')}
@@ -277,10 +302,11 @@ export function PremiumLiveMap({
       <MapContainer
         center={runnerPos}
         zoom={15}
-        style={{ height: "100%", width: "100%" }}
+        style={{ height: "100%", width: "100%", background: "#1a1a1a" }}
         zoomControl={false}
         attributionControl={false}
       >
+        <MapResizer />
         <TileLayer url={tileUrls[mapStyle]} />
 
         {/* Completed Route (Store to Runner) - Faded */}
@@ -288,31 +314,44 @@ export function PremiumLiveMap({
           positions={routeFromStore}
           pathOptions={{
             color: "#6B7280",
-            weight: 4,
-            opacity: 0.4,
-            dashArray: "8, 8"
+            weight: 3,
+            opacity: 0.3,
+            dashArray: "10, 10"
           }}
         />
 
-        {/* Active Route (Runner to Destination) - Highlighted */}
-        <Polyline
-          positions={routeToDestination}
-          pathOptions={{
-            color: "#84CC16",
-            weight: 5,
-            opacity: 1,
-            lineCap: "round",
-            lineJoin: "round"
-          }}
-        />
-        
-        {/* Route glow effect */}
+        {/* Active Route (Runner to Destination) - Highlighted with Animation */}
+        {/* Glow Layer */}
         <Polyline
           positions={routeToDestination}
           pathOptions={{
             color: "#84CC16",
             weight: 12,
             opacity: 0.2,
+          }}
+        />
+
+        {/* Main Line */}
+        <Polyline
+          positions={routeToDestination}
+          pathOptions={{
+            color: "#84CC16",
+            weight: 6,
+            opacity: 1,
+            lineCap: "round",
+            lineJoin: "round"
+          }}
+        />
+
+        {/* Moving Dash Animation (The 'Flow' effect) */}
+        <Polyline
+          positions={routeToDestination}
+          pathOptions={{
+            color: "#ffffff",
+            weight: 2,
+            opacity: 0.8,
+            dashArray: "10, 20",
+            className: "anim-dash-flow" // Requires CSS
           }}
         />
 
@@ -354,7 +393,7 @@ export function PremiumLiveMap({
       {/* Bottom Info Panel */}
       <AnimatePresence>
         {showDetails && (
-          <motion.div 
+          <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
@@ -362,14 +401,14 @@ export function PremiumLiveMap({
           >
             {/* Toggle Button */}
             <div className="flex justify-center -mb-1">
-              <button 
+              <button
                 onClick={() => setShowDetails(!showDetails)}
                 className="bg-black/60 backdrop-blur-md px-4 py-1 rounded-t-lg border-t border-x border-white/10"
               >
                 <ChevronDown size={16} className="text-white" />
               </button>
             </div>
-            
+
             {/* Info Card */}
             <div className="backdrop-blur-xl bg-gradient-to-t from-black via-black/95 to-black/80 border-t border-white/10 p-4">
               {/* ETA Banner */}
@@ -383,7 +422,7 @@ export function PremiumLiveMap({
                     <p className="text-2xl font-black text-white">{estimatedTime || eta}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4 text-sm">
                   <div className="text-center">
                     <p className="text-xl font-black text-lime">{distance}</p>
@@ -395,14 +434,14 @@ export function PremiumLiveMap({
               {/* Runner Quick Actions */}
               {(onCallRunner || onChatRunner) && (
                 <div className="grid grid-cols-2 gap-3">
-                  <button 
+                  <button
                     onClick={onCallRunner}
                     className="flex items-center justify-center gap-2 py-3 rounded-xl bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 transition-colors"
                   >
                     <Phone size={18} className="text-green-400" />
                     <span className="font-bold text-green-400">Call</span>
                   </button>
-                  <button 
+                  <button
                     onClick={onChatRunner}
                     className="flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
                   >
@@ -434,8 +473,8 @@ export function PremiumLiveMap({
 
       {/* Fullscreen backdrop */}
       {isExpanded && (
-        <div 
-          className="fixed inset-0 bg-black/70 -z-10 backdrop-blur-sm" 
+        <div
+          className="fixed inset-0 bg-black/70 -z-10 backdrop-blur-sm"
           onClick={() => setIsExpanded(false)}
         />
       )}
@@ -455,8 +494,8 @@ interface RunnerNavigationMapProps {
   onCall?: () => void;
 }
 
-export function RunnerNavigationMap({ 
-  currentLocation, 
+export function RunnerNavigationMap({
+  currentLocation,
   destination,
   customerName = "Customer",
   customerPhone,
@@ -467,26 +506,47 @@ export function RunnerNavigationMap({
 }: RunnerNavigationMapProps) {
   const [distance, setDistance] = useState<string>("--");
   const [eta, setEta] = useState<string>("--");
+  const [routePath, setRoutePath] = useState<[number, number][]>([]);
 
   const currentPos: [number, number] = [currentLocation.latitude, currentLocation.longitude];
   const destPos: [number, number] = [destination.lat, destination.lng];
-  const routePath = generateCurvedRoute(currentPos, destPos, 25);
 
   useEffect(() => {
-    const R = 6371;
-    const dLat = (destination.lat - currentLocation.latitude) * Math.PI / 180;
-    const dLon = (destination.lng - currentLocation.longitude) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(currentLocation.latitude * Math.PI / 180) * 
-      Math.cos(destination.lat * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const dist = R * c;
-    
-    setDistance(dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`);
-    const etaMinutes = Math.max(1, Math.round((dist / 15) * 60));
-    setEta(`${etaMinutes} min`);
+    const fetchRoute = async () => {
+      const R = 6371;
+      const calcFallback = () => {
+        const dLat = (destination.lat - currentLocation.latitude) * Math.PI / 180;
+        const dLon = (destination.lng - currentLocation.longitude) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(currentLocation.latitude * Math.PI / 180) *
+          Math.cos(destination.lat * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const dist = R * c;
+        setDistance(dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`);
+        setEta(`${Math.max(1, Math.round((dist / 15) * 60))} min`);
+        setRoutePath(generateCurvedRoute([currentLocation.latitude, currentLocation.longitude], [destination.lat, destination.lng], 25));
+      };
+
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${currentLocation.longitude},${currentLocation.latitude};${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.code === 'Ok' && data.routes?.[0]) {
+          const route = data.routes[0];
+          const coords = route.geometry.coordinates.map((c: number[]) => [c[1], c[0]] as [number, number]);
+          setRoutePath(coords);
+          setDistance(route.distance >= 1000 ? `${(route.distance / 1000).toFixed(1)} km` : `${Math.round(route.distance)} m`);
+          setEta(`${Math.max(1, Math.round(route.duration / 60))} min`);
+        } else {
+          calcFallback();
+        }
+      } catch (e) {
+        calcFallback();
+      }
+    };
+    fetchRoute();
   }, [currentLocation, destination]);
 
   const openGoogleMapsNavigation = () => {
@@ -507,7 +567,7 @@ export function RunnerNavigationMap({
           attributionControl={false}
         >
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-          
+
           {/* Route with glow */}
           <Polyline
             positions={routePath}
@@ -517,12 +577,12 @@ export function RunnerNavigationMap({
             positions={routePath}
             pathOptions={{ color: "#84CC16", weight: 4, opacity: 1, lineCap: "round" }}
           />
-          
+
           {/* You marker */}
           <Marker position={currentPos} icon={createPremiumIcon('runner')}>
             <Popup>You are here</Popup>
           </Marker>
-          
+
           {/* Destination marker */}
           <Marker position={destPos} icon={createPremiumIcon('destination')}>
             <Popup>{destination.address}</Popup>
@@ -572,7 +632,7 @@ export function RunnerNavigationMap({
         {/* Action Buttons */}
         <div className="grid grid-cols-3 gap-3">
           {customerPhone && (
-            <a 
+            <a
               href={`tel:${customerPhone}`}
               className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 transition-colors"
             >

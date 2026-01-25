@@ -1,7 +1,7 @@
 import {
     LayoutDashboard, ShoppingBag, Package, List, Truck,
     BarChart3, LineChart, Users, TrendingUp, Zap,
-    Bell, Wallet, AlertTriangle, Settings, LogOut, ToggleRight, Activity, HelpCircle
+    Bell, Wallet, AlertTriangle, Settings, LogOut, ToggleRight, Activity, HelpCircle, Database, CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,10 @@ export type AdminTab =
     | "announcements"
     | "live-chat"
     | "wallet"
+    | "snackzopay"
     | "alerts"
     | "features"
+    | "database"
     | "system-health"
     | "support"
     | "settings";
@@ -52,8 +54,10 @@ const menuItems: { id: AdminTab; label: string; icon: any; badge?: string }[] = 
     { id: "announcements", label: "Notify", icon: Bell },
     { id: "live-chat", label: "Live Chat", icon: HelpCircle, badge: "NEW" },
     { id: "wallet", label: "Wallet", icon: Wallet },
+    { id: "snackzopay", label: "SnackzoPay", icon: CreditCard, badge: "NEW" },
     { id: "alerts", label: "Alerts", icon: AlertTriangle },
     { id: "features", label: "Features", icon: ToggleRight },
+    { id: "database", label: "Database", icon: Database },
     { id: "system-health", label: "System Health", icon: Activity },
     { id: "support", label: "Support", icon: HelpCircle },
     { id: "settings", label: "Settings", icon: Settings },

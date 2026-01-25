@@ -45,6 +45,8 @@ import GroupCheckout from "./pages/GroupCheckout";
 import SnackzoAI from "./components/SnackzoAI";
 import { SocialProofToast } from "./components/SocialProofToast";
 import { LiveChat } from "./components/LiveChat";
+import SnackzoPayGateway from "./pages/SnackzoPayGateway";
+import SnackzoPayConfirm from "./pages/SnackzoPayConfirm";
 
 const queryClient = new QueryClient();
 
@@ -118,6 +120,9 @@ const App = () => {
                       <Route path="/spin" element={<SpinWheelPage />} />
                       <Route path="/flash-deals" element={<FlashDealsPage />} />
                       */}
+                    {/* SnackzoPay Gateway */}
+                    <Route path="/pay" element={<SnackzoPayGateway />} />
+                    <Route path="/pay/confirm" element={<SnackzoPayConfirm />} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>

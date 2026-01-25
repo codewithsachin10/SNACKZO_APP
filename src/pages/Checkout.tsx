@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 // import { useFeatures } from "@/contexts/FeatureContext"; // Temporarily disabled
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, CreditCard, Truck, QrCode, Wallet, Tag, X, Check, Coins, Clock, Zap } from "lucide-react";
+import { ArrowLeft, MapPin, CreditCard, Truck, QrCode, Wallet, Tag, X, Check, Coins, Clock, Zap, Shield, Smartphone, Building2 } from "lucide-react";
 import { ExpressDeliveryBadge, ExpressDeliveryInfo } from "@/components/ExpressDeliveryBadge";
 import { PaymentMethodSelector } from "@/components/PaymentMethodSelector";
 import { SavedPaymentMethods } from "@/components/SavedPaymentMethods";
@@ -38,6 +38,7 @@ const Checkout = () => {
   const isFeatureEnabled = (feature: string) => true;
   const navigate = useNavigate();
 
+  const [searchParams] = useSearchParams();
   const [deliveryMode, setDeliveryMode] = useState<"room" | "common_area">("room");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "upi" | "netbanking" | "bnpl" | "cod" | "wallet" | "saved">("upi");
   const [selectedSavedMethod, setSelectedSavedMethod] = useState<any>(null);
@@ -45,6 +46,29 @@ const Checkout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showUpiQr, setShowUpiQr] = useState(false);
   const [oneClickCheckout, setOneClickCheckout] = useState(false);
+
+  // Handle SnackzoPay Callback
+  useEffect(() => {
+    const status = searchParams.get("status");
+    const txnId = searchParams.get("transaction_id");
+
+    if (status === "success" && txnId) {
+      // Payment success!
+      // We need to trigger handlePlaceOrder with details
+      // Note: We use a timeout to ensure state is hydrated if needed, though usually not needed
+      const providerOrderId = searchParams.get("transaction_id") || `ord_${Date.now()}`;
+
+      handlePlaceOrder({
+        transaction_id: txnId,
+        payment_status: 'paid',
+        provider_order_id: providerOrderId
+      });
+    } else if (status === "failed") {
+      toast.error("Payment failed. Please try again.");
+    } else if (status === "cancelled") {
+      toast.info("Payment cancelled");
+    }
+  }, [searchParams]);
 
   // Address Modal State
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
@@ -186,6 +210,10 @@ const Checkout = () => {
     toast.info("Discount removed");
   };
 
+  const [gateway, setGateway] = useState<'snackzo' | 'razorpay'>('snackzo');
+
+  // ... (existing functions)
+
   const handlePayment = async () => {
     if (!profile?.hostel_block || !profile?.room_number) {
       toast.error("Please complete your profile first");
@@ -217,55 +245,35 @@ const Checkout = () => {
 
     // One-click checkout with saved method
     if (paymentMethod === 'saved' && selectedSavedMethod) {
-      await handleSavedMethodPayment(selectedSavedMethod);
+      // Saved methods currently default to SnackzoPay redirect logic for now
+      await handleSnackzoPayment();
       return;
     }
 
-    // All other payment methods via Razorpay
-    await handleRazorpayPayment();
+    // Online Payment Handling
+    if (gateway === 'snackzo') {
+      await handleSnackzoPayment();
+    } else {
+      await handleRazorpayPayment();
+    }
   };
 
   const handleSavedMethodPayment = async (savedMethod: any) => {
+    // For now, treat saved methods as redirect to SnackzoPay (could be optimized later)
+    await handleSnackzoPayment();
+  };
+
+  const handleSnackzoPayment = async () => {
     setIsProcessing(true);
     try {
-      // For saved cards, use Razorpay's saved card flow
-      if (savedMethod.payment_type === 'card' && savedMethod.card_token) {
-        // Create order and use saved card token
-        const { data: orderData, error } = await supabase.functions.invoke('create-razorpay-order', {
-          body: {
-            amount: total,
-            method: 'card',
-            saved_card_token: savedMethod.card_token
-          }
-        });
+      const tempOrderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const returnUrl = `${window.location.origin}/checkout`;
+      const gatewayUrl = `${window.location.origin}/pay?amount=${total}&orderId=${tempOrderId}&returnUrl=${encodeURIComponent(returnUrl)}&merchant=Snackzo&phone=${profile?.phone || ""}`;
 
-        if (error) throw error;
-
-        // Process payment with saved card
-        const { data: paymentData, error: paymentError } = await supabase.functions.invoke('process-saved-card-payment', {
-          body: {
-            order_id: orderData.id,
-            card_token: savedMethod.card_token,
-            amount: total
-          }
-        });
-
-        if (paymentError) throw paymentError;
-
-        // Payment successful
-        await handlePlaceOrder({
-          transaction_id: paymentData.payment_id,
-          payment_status: 'paid',
-          provider_order_id: orderData.id,
-          saved_method_id: savedMethod.id
-        });
-      } else {
-        // For other saved methods, use regular flow
-        await handleRazorpayPayment();
-      }
-    } catch (err: any) {
-      console.error("Saved method payment error:", err);
-      toast.error(err.message || 'Payment failed');
+      window.location.href = gatewayUrl;
+    } catch (err) {
+      console.error("Payment redirect error:", err);
+      toast.error("Failed to redirect to payment gateway");
       setIsProcessing(false);
     }
   };
@@ -308,7 +316,7 @@ const Checkout = () => {
           contact: profile?.phone || "",
         },
         theme: {
-          color: "#84cc16" // Lime color
+          color: "#3b82f6" // Blue for Razorpay
         },
         modal: {
           ondismiss: () => {
@@ -316,37 +324,16 @@ const Checkout = () => {
             toast("Payment cancelled");
           }
         },
-        // Enable all payment methods
         method: {
           card: paymentMethod === 'card',
           upi: paymentMethod === 'upi',
           netbanking: paymentMethod === 'netbanking',
-          wallet: false, // Disable Razorpay wallet, use our own
-        },
-        // Save card option for future use
-        save: {
-          enabled: true,
-          customer_id: user?.id // Use user ID as customer identifier
+          wallet: false,
         }
       };
 
-      // Add BNPL options if selected
-      if (paymentMethod === 'bnpl') {
-        options.method = {
-          card: false,
-          upi: false,
-          netbanking: false,
-        };
-        // Note: BNPL integration requires additional setup with providers
-        // For now, we'll show a message and redirect to provider
-        toast.info("BNPL integration coming soon. Redirecting to payment gateway...");
-        // Fallback to card payment for now
-        options.method.card = true;
-      }
-
       const rzp1 = new (window as any).Razorpay(options);
       rzp1.on('payment.success', async (response: any) => {
-        // Handle successful payment
         await handlePlaceOrder({
           transaction_id: response.razorpay_payment_id,
           payment_status: 'paid',
@@ -369,7 +356,7 @@ const Checkout = () => {
     }
   };
 
-  const handlePlaceOrder = async (paymentDetails?: { transaction_id: string, payment_status: string, provider_order_id: string, saved_method_id?: string }) => {
+  async function handlePlaceOrder(paymentDetails?: { transaction_id: string, payment_status: string, provider_order_id: string, saved_method_id?: string }) {
     setIsProcessing(true);
 
     try {
@@ -574,6 +561,9 @@ const Checkout = () => {
       setIsProcessing(false);
     }
   };
+
+
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -872,27 +862,165 @@ const Checkout = () => {
                 Payment Method
               </h2>
 
-              <PaymentMethodSelector
-                selectedMethod={paymentMethod}
-                selectedSavedMethodId={selectedSavedMethod?.id}
-                onMethodChange={(method) => {
-                  setPaymentMethod(method);
-                  if (method !== 'saved') {
-                    setSelectedSavedMethod(null);
-                  }
-                  setShowUpiQr(method === 'upi');
-                }}
-                onSavedMethodSelect={(method) => {
-                  setSelectedSavedMethod(method);
-                  if (method) {
+
+
+              {/* Saved Payment Methods Section */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold uppercase text-sm flex items-center gap-2">
+                    <Zap size={16} className="text-lime" />
+                    Quick Checkout
+                  </h3>
+                </div>
+
+                <SavedPaymentMethods
+                  onSelect={(method) => {
+                    setSelectedSavedMethod(method);
                     setPaymentMethod('saved');
-                  }
-                }}
-                showSavedMethods={true}
-                showWallet={walletBalance > 0}
-                showCOD={true}
-                total={total}
-              />
+                  }}
+                  selectedId={selectedSavedMethod?.id}
+                  showAddButton={false}
+                  onAddNew={() => { }}
+                />
+
+                {paymentMethod === 'saved' && selectedSavedMethod && (
+                  <div className="mt-2 p-3 rounded-lg bg-lime/10 border border-lime/30 flex items-center gap-2">
+                    <Check size={16} className="text-lime" />
+                    <span className="text-sm font-bold text-lime">Using saved payment method</span>
+                  </div>
+                )}
+
+                <div className="relative mt-4 mb-4">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">OR CHOOSE METHOD</span></div>
+                </div>
+              </div>
+
+              {/* Grouped Payment Selection UI */}
+              <div className="space-y-4">
+                {/* 1. SnackzoPay */}
+                <div className={`border-2 rounded-xl overflow-hidden transition-all ${gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) ? 'border-purple-500 bg-purple-500/5' : 'border-border bg-card'}`}>
+                  <button
+                    onClick={() => {
+                      setGateway('snackzo');
+                      setPaymentMethod('upi'); // Default sub-method
+                      setSelectedSavedMethod(null);
+                    }}
+                    className="w-full p-4 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-500/10 text-purple-500 rounded-lg"><Zap size={20} /></div>
+                      <div className="text-left">
+                        <p className="font-bold">SnackzoPay</p>
+                        <p className="text-xs text-muted-foreground">Credit/Debit Card, UPI, Netbanking</p>
+                      </div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) ? 'border-purple-500' : 'border-muted-foreground'}`}>
+                      {gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) && <div className="w-2.5 h-2.5 bg-purple-500 rounded-full" />}
+                    </div>
+                  </button>
+
+                  {/* Expanded Options */}
+                  {gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) && (
+                    <div className="px-4 pb-4 grid grid-cols-3 gap-2 animate-in slide-in-from-top-2">
+                      {[
+                        { id: 'upi', label: 'UPI', icon: Smartphone },
+                        { id: 'card', label: 'Card', icon: CreditCard },
+                        { id: 'netbanking', label: 'More', icon: Building2 }
+                      ].map(opt => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setPaymentMethod(opt.id as any)}
+                          className={`p-3 rounded-lg border flex flex-col items-center gap-1 transition-all ${paymentMethod === opt.id ? 'bg-purple-500 text-white border-purple-500' : 'bg-background border-border hover:border-purple-500/50'}`}
+                        >
+                          <opt.icon size={16} />
+                          <span className="text-xs font-bold">{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Razorpay */}
+                <div className={`border-2 rounded-xl overflow-hidden transition-all ${gateway === 'razorpay' && ['card', 'upi', 'netbanking'].includes(paymentMethod) ? 'border-blue-500 bg-blue-500/5' : 'border-border bg-card'}`}>
+                  <button
+                    onClick={() => {
+                      setGateway('razorpay');
+                      setPaymentMethod('netbanking');
+                      setSelectedSavedMethod(null);
+                    }}
+                    className="w-full p-4 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg"><Shield size={20} /></div>
+                      <div className="text-left">
+                        <p className="font-bold">Razorpay</p>
+                        <p className="text-xs text-muted-foreground">Netbanking Only</p>
+                      </div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${gateway === 'razorpay' && ['card', 'upi', 'netbanking'].includes(paymentMethod) ? 'border-blue-500' : 'border-muted-foreground'}`}>
+                      {gateway === 'razorpay' && ['card', 'upi', 'netbanking'].includes(paymentMethod) && <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />}
+                    </div>
+                  </button>
+                  {/* Expanded Options */}
+                  {gateway === 'razorpay' && ['card', 'upi', 'netbanking'].includes(paymentMethod) && (
+                    <div className="px-4 pb-4 grid grid-cols-1 gap-2 animate-in slide-in-from-top-2">
+                      {[
+                        { id: 'netbanking', label: 'Netbanking (Access to all banks)', icon: Building2 }
+                      ].map(opt => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setPaymentMethod(opt.id as any)}
+                          className={`p-3 rounded-lg border flex items-center justify-center gap-2 transition-all ${paymentMethod === opt.id ? 'bg-blue-500 text-white border-blue-500' : 'bg-background border-border hover:border-blue-500/50'}`}
+                        >
+                          <opt.icon size={16} />
+                          <span className="text-sm font-bold">{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Wallet */}
+                {walletBalance > 0 && (
+                  <div className={`border-2 rounded-xl overflow-hidden transition-all ${paymentMethod === 'wallet' ? 'border-lime bg-lime/10' : 'border-border bg-card'}`}>
+                    <button
+                      onClick={() => { setPaymentMethod('wallet'); setSelectedSavedMethod(null); }}
+                      className="w-full p-4 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-lime/20 text-lime-700 rounded-lg"><Coins size={20} /></div>
+                        <div className="text-left">
+                          <p className="font-bold">Wallet Balance</p>
+                          <p className="text-xs text-muted-foreground">Available: ₹{walletBalance}</p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'wallet' ? 'border-lime' : 'border-muted-foreground'}`}>
+                        {paymentMethod === 'wallet' && <div className="w-2.5 h-2.5 bg-lime rounded-full" />}
+                      </div>
+                    </button>
+                  </div>
+                )}
+
+                {/* 4. Cash on Delivery */}
+                <div className={`border-2 rounded-xl overflow-hidden transition-all ${paymentMethod === 'cod' ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
+                  <button
+                    onClick={() => { setPaymentMethod('cod'); setSelectedSavedMethod(null); }}
+                    className="w-full p-4 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 text-primary rounded-lg"><Truck size={20} /></div>
+                      <div className="text-left">
+                        <p className="font-bold">Cash on Delivery</p>
+                        <p className="text-xs text-muted-foreground">Pay when you receive</p>
+                      </div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'cod' ? 'border-primary' : 'border-muted-foreground'}`}>
+                      {paymentMethod === 'cod' && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
+                    </div>
+                  </button>
+                </div>
+              </div>
 
               {/* One-Click Checkout Toggle */}
               {selectedSavedMethod && (

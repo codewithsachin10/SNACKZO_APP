@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Package, Phone, MapPin, Check, Truck, RefreshCw, User, LogOut, Home, TrendingUp, History, MessageCircle, Navigation, CheckCheck, UserPlus, X,
-  Timer, Coffee, AlertTriangle, ShieldAlert, IndianRupee, ExternalLink
+  Timer, Coffee, AlertTriangle, ShieldAlert, IndianRupee, ExternalLink, QrCode
 } from "lucide-react";
 import { Chat } from "@/components/Chat";
 import { initEmailService, sendOrderEmail } from "@/utils/emailService";
@@ -97,6 +97,11 @@ const RunnerDashboard = () => {
   const [otpModal, setOtpModal] = useState<{ isOpen: boolean; orderId: string | null }>({ isOpen: false, orderId: null });
   const [showChat, setShowChat] = useState<string | null>(null);
   const [otpInput, setOtpInput] = useState(["", "", "", ""]);
+
+  // Enhanced Navigation & Payment States
+  const [navModal, setNavModal] = useState<{ isOpen: boolean; orderId: string | null; address: string | null }>({ isOpen: false, orderId: null, address: null });
+  const [paymentModal, setPaymentModal] = useState<{ isOpen: boolean; orderId: string | null; amount: number; }>({ isOpen: false, orderId: null, amount: 0 });
+  const [showQr, setShowQr] = useState(false);
 
   // Map State
   const [showMapForOrder, setShowMapForOrder] = useState<string | null>(null);
@@ -229,42 +234,100 @@ const RunnerDashboard = () => {
     return () => clearInterval(interval);
   }, [currentShift, isOnBreak]);
 
-  const startTracking = () => {
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // metres
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) *
+      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // in metres
+  };
+
+  // Generate consistent mock coordinates based on address hash (Mock Geocoding)
+  const getStableCoordinates = (address: string, id: string) => {
+    let hash = 0;
+    const str = address + id;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    // Generate offsets within ~1km range around central point
+    const latOffset = (hash % 1000) / 50000; // ~0.02 deg
+    const lngOffset = ((hash >> 2) % 1000) / 50000;
+
+    // Base: Chennai (Snackzo HQ)
+    return {
+      lat: 13.0827 + latOffset,
+      lng: 80.2707 + lngOffset
+    };
+  };
+
+  const startTracking = (useLowAccuracy = false) => {
     if (!navigator.geolocation) {
       toast.error("Geolocation not supported");
       return;
     }
 
-    console.log("📍 Requesting Location Permission...");
-    toast.message("Requesting GPS Access...");
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+    }
+
+    console.log(`📍 Starting Tracking (High Accuracy: ${!useLowAccuracy})...`);
+    if (!isTracking) toast.message(useLowAccuracy ? "Using GPS (Low Power)..." : "Acquiring Precision GPS...");
 
     const id = navigator.geolocation.watchPosition(
       async (position) => {
-        console.log("📍 Location Update:", position.coords.latitude, position.coords.longitude);
+        const newLat = position.coords.latitude;
+        const newLng = position.coords.longitude;
+
+        // Enhanced Jitter Filter: Update local state only if moved > 20 meters
+        // This prevents the "jumping" effect caused by signal noise
+        setCurrentLocation(prev => {
+          if (!prev) return { latitude: newLat, longitude: newLng };
+          const dist = getDistance(prev.latitude, prev.longitude, newLat, newLng);
+          if (dist > 20) { // Increased to 20 meters stability threshold
+            return { latitude: newLat, longitude: newLng };
+          }
+          return prev;
+        });
+
         if (!isTracking) {
           setIsTracking(true);
-          toast.success("🔴 Live Tracking Active");
+          toast.success("✅ GPS Signal Locked");
         }
 
         // Sync to DB
         if (runner?.id) {
           await supabase.from("runners").update({
-            current_lat: String(position.coords.latitude),
-            current_lng: String(position.coords.longitude),
+            current_lat: String(newLat),
+            current_lng: String(newLng),
             last_location_update: new Date().toISOString()
           } as any).eq("id", runner.id);
         }
       },
       (err) => {
         console.error("Location Error:", err);
+        if (!useLowAccuracy) {
+          // Retry with low accuracy if high accuracy fails (common indoors)
+          console.log("Falling back to low accuracy mode...");
+          startTracking(true);
+          return;
+        }
+
+        // If both fail
         if (err.code === 1) toast.error("Please allow location access!");
-        else toast.error("Location error: " + err.message);
+        else toast.error("GPS Signal Lost: " + err.message);
         setIsTracking(false);
       },
       {
-        enableHighAccuracy: false, // Relaxed for better indoor success
-        timeout: 20000, // Longer timeout
-        maximumAge: 5000 // Accept slightly older cached positions
+        enableHighAccuracy: !useLowAccuracy,
+        timeout: 15000,
+        maximumAge: 10000 // Cache for 10s to smooth updates
       }
     );
 
@@ -533,8 +596,16 @@ const RunnerDashboard = () => {
   };
 
   const handleDeliveryClick = (orderId: string) => {
-    setOtpModal({ isOpen: true, orderId });
-    setOtpInput(["", "", "", ""]);
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    if (order.payment_method === 'cod') {
+      setPaymentModal({ isOpen: true, orderId, amount: order.total });
+      setShowQr(false);
+    } else {
+      setOtpModal({ isOpen: true, orderId });
+      setOtpInput(["", "", "", ""]);
+    }
   };
 
   const verifyAndCompleteDelivery = async () => {
@@ -919,12 +990,18 @@ const RunnerDashboard = () => {
 
                       {/* Navigation Map Toggle */}
                       <button
-                        onClick={() => setShowMapForOrder(showMapForOrder === order.id ? null : order.id)}
-                        className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 rounded-xl py-2.5 mb-3 flex items-center justify-center gap-2 font-bold transition-all"
+                        onClick={() => {
+                          if (showMapForOrder === order.id) {
+                            setShowMapForOrder(null);
+                          } else {
+                            setNavModal({ isOpen: true, orderId: order.id, address: order.delivery_address });
+                          }
+                        }}
+                        className={`w-full rounded-xl py-2.5 mb-3 flex items-center justify-center gap-2 font-bold transition-all ${showMapForOrder === order.id ? 'bg-muted text-muted-foreground' : 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 shadow-lg shadow-blue-500/10'}`}
                       >
                         <Navigation size={18} />
-                        {showMapForOrder === order.id ? "HIDE MAP" : "NAVIGATE TO CUSTOMER"}
-                        <ExternalLink size={14} />
+                        {showMapForOrder === order.id ? "CLOSE NAVIGATION" : "NAVIGATE TO CUSTOMER"}
+                        {showMapForOrder !== order.id && <ExternalLink size={14} />}
                       </button>
 
                       {/* Premium Map with Navigation */}
@@ -933,8 +1010,7 @@ const RunnerDashboard = () => {
                           <RunnerNavigationMap
                             currentLocation={currentLocation}
                             destination={{
-                              lat: 13.0827 + (Math.random() * 0.02 - 0.01),
-                              lng: 80.2707 + (Math.random() * 0.02 - 0.01),
+                              ...getStableCoordinates(order.delivery_address, order.id),
                               address: order.delivery_address
                             }}
                             customerName={order.profile?.full_name || 'Customer'}
@@ -1119,6 +1195,114 @@ const RunnerDashboard = () => {
           </div>
         </div>
       )}
+      {/* NAVIGATION MODAL */}
+      {navModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm" onClick={() => setNavModal({ ...navModal, isOpen: false })}>
+          <div className="glass-card w-full max-w-sm p-6 relative animate-in slide-in-from-bottom duration-300 rounded-t-3xl sm:rounded-3xl border-t border-x sm:border border-border/50 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-6 sm:hidden" />
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Navigation size={22} className="text-blue-500" /> Start Navigation</h3>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  if (navModal.orderId) setShowMapForOrder(navModal.orderId);
+                  setNavModal({ ...navModal, isOpen: false });
+                }}
+                className="w-full p-4 bg-muted/30 hover:bg-muted/50 rounded-xl flex items-center gap-4 transition-all group border border-transparent hover:border-primary/20"
+              >
+                <div className="w-12 h-12 bg-blue-500/20 text-blue-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner"><MapPin size={24} /></div>
+                <div className="text-left">
+                  <p className="font-bold text-lg">In-App Navigation</p>
+                  <p className="text-xs text-muted-foreground">Stay within Snackzo Runner</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navModal.address || '')}`, '_blank');
+                  setNavModal({ ...navModal, isOpen: false });
+                }}
+                className="w-full p-4 bg-muted/30 hover:bg-muted/50 rounded-xl flex items-center gap-4 transition-all group border border-transparent hover:border-green-500/20"
+              >
+                <div className="w-12 h-12 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner"><ExternalLink size={24} /></div>
+                <div className="text-left">
+                  <p className="font-bold text-lg">Google Maps</p>
+                  <p className="text-xs text-muted-foreground">Get fastest traffic routes</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PAYMENT COLLECTION MODAL */}
+      {paymentModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="glass-card w-full max-w-sm p-6 relative animate-in zoom-in-95 shadow-2xl border-2 border-primary/20">
+            <button onClick={() => setPaymentModal({ ...paymentModal, isOpen: false })} className="absolute top-4 right-4 p-2 hover:bg-muted rounded-full"><X size={20} /></button>
+
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold mb-1">Collect Payment</h3>
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-4xl font-black text-orange-500">₹{paymentModal.amount}</span>
+              </div>
+              <p className="text-xs text-muted-foreground bg-muted/50 inline-block px-2 py-1 rounded mt-2">Cash on Delivery</p>
+            </div>
+
+            {!showQr ? (
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowQr(true)}
+                  className="w-full p-4 bg-primary/10 border-2 border-primary/20 hover:bg-primary/20 rounded-xl flex items-center justify-center gap-3 transition-all group"
+                >
+                  <div className="p-2 bg-primary text-primary-foreground rounded-lg group-hover:scale-110 transition-transform"><QrCode size={20} /></div>
+                  <span className="font-bold text-lg">Show UPI QR Code</span>
+                </button>
+
+                <div className="relative py-2">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-muted" /></div>
+                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">OR</span></div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setPaymentModal({ ...paymentModal, isOpen: false });
+                    setOtpModal({ isOpen: true, orderId: paymentModal.orderId });
+                  }}
+                  className="w-full p-4 bg-green-500/10 border-2 border-green-500/20 hover:bg-green-500/20 rounded-xl flex items-center justify-center gap-3 transition-all group"
+                >
+                  <div className="p-2 bg-green-500 text-white rounded-lg group-hover:scale-110 transition-transform"><IndianRupee size={20} /></div>
+                  <span className="font-bold text-lg">Cash Received</span>
+                </button>
+              </div>
+            ) : (
+              <div className="text-center animate-in fade-in slide-in-from-bottom-4">
+                <div className="bg-white p-4 rounded-xl inline-block mb-4 shadow-xl border-4 border-white">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=snackzo@upi&pn=Snackzo&am=${paymentModal.amount}&tr=${paymentModal.orderId}`}
+                    alt="Payment QR"
+                    className="w-48 h-48"
+                  />
+                </div>
+                <p className="text-sm font-bold mb-4 text-muted-foreground">Ask customer to scan this QR</p>
+
+                <button
+                  onClick={() => {
+                    setPaymentModal({ ...paymentModal, isOpen: false });
+                    setOtpModal({ isOpen: true, orderId: paymentModal.orderId });
+                  }}
+                  className="w-full neon-btn bg-lime text-lime-foreground py-3 font-bold rounded-xl mb-3 shadow-lg shadow-lime/20"
+                >
+                  <CheckCheck size={18} className="inline mr-2" />
+                  Payment Verified
+                </button>
+
+                <button onClick={() => setShowQr(false)} className="text-sm text-primary font-medium hover:underline">Back to Options</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

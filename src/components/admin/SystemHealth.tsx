@@ -114,6 +114,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { checkEmailConfig } from "@/utils/emailService";
+import FullSystemDiagnostic from "./FullSystemDiagnostic";
 
 // Generate UUID using browser's crypto API (no external dependency needed)
 const generateUUID = (): string => {
@@ -1097,7 +1098,7 @@ export default function SystemHealth() {
   });
   const [newEndpoint, setNewEndpoint] = useState({ name: "", url: "" });
   const [checkingId, setCheckingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"health" | "troubleshoot" | "devices">("health");
+  const [activeTab, setActiveTab] = useState<"health" | "troubleshoot" | "devices" | "diagnostic">("health");
 
   // Persist endpoints
   useEffect(() => {
@@ -1484,6 +1485,12 @@ export default function SystemHealth() {
             className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all", activeTab === "devices" ? "bg-card shadow text-primary" : "text-muted-foreground hover:text-foreground")}
           >
             <Smartphone size={14} /> Devices
+          </button>
+          <button
+            onClick={() => setActiveTab("diagnostic")}
+            className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all", activeTab === "diagnostic" ? "bg-gradient-to-r from-primary to-orange-500 text-white shadow" : "text-muted-foreground hover:text-foreground")}
+          >
+            <Terminal size={14} /> Full Diagnostic
           </button>
         </div>
       </div>
@@ -2025,6 +2032,7 @@ export default function SystemHealth() {
 
       {activeTab === "troubleshoot" && <TroubleshootPanel />}
       {activeTab === "devices" && <ActiveDevicesPanel />}
+      {activeTab === "diagnostic" && <FullSystemDiagnostic />}
     </div >
   );
 }

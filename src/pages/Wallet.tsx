@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -49,6 +49,52 @@ const Wallet = () => {
     ]
   });
 
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const status = searchParams.get("status");
+    const txnId = searchParams.get("transaction_id");
+    const amount = parseFloat(searchParams.get("amount") || "0");
+
+    if (status === "success" && txnId && amount > 0) {
+      completeTopup(amount, txnId);
+    } else if (status === "failed") {
+      toast.error("Top-up failed");
+      setTopupAmount("");
+    }
+  }, [searchParams]);
+
+  const completeTopup = async (amount: number, txnId: string) => {
+    if (isTopingUp) return; // Prevent double trigger
+    setIsTopingUp(true);
+
+    try {
+      const { error: dbError } = await supabase
+        .from("wallet_transactions")
+        .insert({
+          user_id: user!.id,
+          amount: amount,
+          transaction_type: "topup",
+          description: `Wallet load (Txn: ${txnId})`
+        });
+
+      if (dbError) throw dbError;
+
+      toast.success(`₹${amount} added to wallet!`);
+      setTopupAmount("");
+      // Clear params to prevent re-trigger on refresh
+      navigate("/wallet", { replace: true });
+
+      await refreshProfile();
+      await fetchTransactions();
+    } catch (err) {
+      console.error("Topup complete error:", err);
+      toast.error("Failed to update wallet balance");
+    } finally {
+      setIsTopingUp(false);
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       navigate("/auth");
@@ -94,45 +140,12 @@ const Wallet = () => {
     setIsTopingUp(true);
 
     try {
-      const { data: orderData, error: functionError } = await supabase.functions.invoke('create-razorpay-order', {
-        body: { amount }
-      });
+      const tempOrderId = `TOPUP-${Date.now()}`;
+      // Verify we include amount in returnUrl so we know how much to credit
+      const returnUrl = `${window.location.origin}/wallet?amount=${amount}`;
+      const gatewayUrl = `${window.location.origin}/pay?amount=${amount}&orderId=${tempOrderId}&returnUrl=${encodeURIComponent(returnUrl)}&merchant=Snackzo Wallet`;
 
-      if (functionError) throw new Error('Failed to create payment order');
-
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "Hostel Mart",
-        description: "Wallet Top-up",
-        order_id: orderData.id,
-        handler: async function (response: any) {
-          try {
-            const { error: dbError } = await supabase
-              .from("wallet_transactions")
-              .insert({
-                user_id: user!.id,
-                amount: amount,
-                transaction_type: "topup",
-                description: `Wallet load (Txn: ${response.razorpay_payment_id})`
-              });
-            if (dbError) throw dbError;
-            toast.success(`₹${amount} added to wallet!`);
-            setTopupAmount("");
-            await refreshProfile();
-            await fetchTransactions();
-          } catch (err) {
-            toast.error("Payment successful but wallet update failed.");
-          }
-        },
-        prefill: { name: profile?.full_name || "", contact: profile?.phone || "" },
-        theme: { color: "#84cc16" },
-        modal: { ondismiss: () => setIsTopingUp(false) }
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
+      window.location.href = gatewayUrl;
     } catch (error) {
       toast.error("Failed to initiate payment");
       setIsTopingUp(false);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { 
-  Settings, Zap, Bell, Gift, ToggleLeft, ToggleRight, 
+import {
+  Settings, Zap, Bell, Gift, ToggleLeft, ToggleRight,
   Check, X, RefreshCw, AlertCircle, Info
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +22,8 @@ interface FeatureToggle {
 const FEATURE_ICONS: Record<string, React.ElementType> = {
   flash_deals: Zap,
   price_alerts: Bell,
-  spin_wheel: Gift
+  spin_wheel: Gift,
+  demo_otp_mode: AlertCircle
 };
 
 const DEFAULT_FEATURES: Omit<FeatureToggle, "id" | "updated_at">[] = [
@@ -49,6 +50,14 @@ const DEFAULT_FEATURES: Omit<FeatureToggle, "id" | "updated_at">[] = [
     is_enabled: true,
     icon: "spin_wheel",
     category: "gamification"
+  },
+  {
+    feature_name: "demo_otp_mode",
+    display_name: "Demo OTP Mode",
+    description: "When email fails, show OTP in a popup instead. Enable this for testing/demo purposes.",
+    is_enabled: false,
+    icon: "demo_otp_mode",
+    category: "developer"
   }
 ];
 
@@ -83,23 +92,23 @@ export function AdminFeatureControls() {
 
   const toggleFeature = async (feature: FeatureToggle) => {
     setUpdatingFeature(feature.feature_name);
-    
+
     const newState = !feature.is_enabled;
-    
+
     const { error } = await (supabase.from as any)("feature_toggles")
-      .update({ 
+      .update({
         is_enabled: newState,
         updated_at: new Date().toISOString()
       })
       .eq("feature_name", feature.feature_name);
 
     if (!error) {
-      setFeatures(features.map(f => 
+      setFeatures(features.map(f =>
         f.feature_name === feature.feature_name
           ? { ...f, is_enabled: newState, updated_at: new Date().toISOString() }
           : f
       ));
-      
+
       toast({
         title: newState ? "Feature Enabled" : "Feature Disabled",
         description: `${feature.display_name} is now ${newState ? "active" : "inactive"}`,
@@ -111,7 +120,7 @@ export function AdminFeatureControls() {
         variant: "destructive"
       });
     }
-    
+
     setUpdatingFeature(null);
   };
 
@@ -144,6 +153,10 @@ export function AdminFeatureControls() {
     gamification: {
       label: "Gamification",
       description: "Fun and interactive features to boost customer loyalty"
+    },
+    developer: {
+      label: "🛠️ Developer Tools",
+      description: "Testing and development features (disable in production)"
     },
     general: {
       label: "General Features",
@@ -178,7 +191,7 @@ export function AdminFeatureControls() {
         <div>
           <p className="font-medium text-blue-700">Feature Toggle Guide</p>
           <p className="text-sm text-blue-600">
-            Disabled features will be hidden from customers but their data will be preserved. 
+            Disabled features will be hidden from customers but their data will be preserved.
             You can re-enable them anytime without losing any configuration.
           </p>
         </div>
@@ -286,8 +299,8 @@ export function AdminFeatureControls() {
         <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
           <div
             className="h-full bg-green-500 transition-all"
-            style={{ 
-              width: `${(features.filter(f => f.is_enabled).length / features.length) * 100}%` 
+            style={{
+              width: `${(features.filter(f => f.is_enabled).length / features.length) * 100}%`
             }}
           />
         </div>
@@ -318,7 +331,7 @@ export function QuickFeatureToggle({ featureName, compact = false }: QuickFeatur
       .select("is_enabled")
       .eq("feature_name", featureName)
       .single();
-    
+
     if (data) {
       setIsEnabled(data.is_enabled);
     }
