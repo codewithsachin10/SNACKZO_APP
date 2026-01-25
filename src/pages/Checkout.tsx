@@ -10,8 +10,7 @@ import { ExpressDeliveryBadge, ExpressDeliveryInfo } from "@/components/ExpressD
 import { PaymentMethodSelector } from "@/components/PaymentMethodSelector";
 import { SavedPaymentMethods } from "@/components/SavedPaymentMethods";
 import { BNPLSelector } from "@/components/BNPLSelector";
-import { initEmailService, sendOrderEmail } from "@/utils/emailService";
-import { notifyOrderPlaced } from "@/utils/smsService";
+import { notifyOrderConfirmed } from "@/utils/notificationService";
 import OrderCelebration from "@/components/ui/OrderCelebration";
 import AddressSelectorModal from "@/components/AddressSelectorModal";
 
@@ -97,11 +96,6 @@ const Checkout = () => {
   const [isExpress, setIsExpress] = useState(false);
   const expressDeliveryFee = 20; // Extra fee for express delivery
   const expressDeliveryMinOrder = 100; // Minimum order for express
-
-  // Init EmailJS
-  useState(() => {
-    initEmailService();
-  });
 
   const walletBalance = profile?.wallet_balance || 0;
 
@@ -536,22 +530,12 @@ const Checkout = () => {
           });
       }
 
-      // Send Email
-      await sendOrderEmail(
-        profile?.full_name || "Snackzo User",
+      // Send Notifications (Email + WhatsApp + SMS) - Unified
+      await notifyOrderConfirmed(
         user.email || "",
-        "confirmed",
-        {
-          orderId: order.id.slice(0, 8),
-          amount: String(total),
-          link: `${window.location.origin}/orders/${order.id}`
-        }
+        profile?.phone || "",
+        { id: order.id, total: total }
       );
-
-      // Send SMS
-      if (profile?.phone) {
-        notifyOrderPlaced(profile.phone, order.id, total);
-      }
 
       clearCart();
       toast.success("Order placed successfully!");
