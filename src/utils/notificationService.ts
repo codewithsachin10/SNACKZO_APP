@@ -1,89 +1,148 @@
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 
-/**
- * UNIFIED NOTIFICATION SERVICE
- * Handles Email (Resend), SMS (Fast2SMS/Twilio), and WhatsApp (Twilio).
- * 
- * Architecture:
- * Frontend -> Supabase Edge Function ('send-notification') -> 3rd Party APIs
- * This keeps your API Keys secure on the server.
- */
+const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY;
+const SMS_API_KEY = import.meta.env.VITE_SMS_API_KEY;
 
-interface NotificationPayload {
-    to: string; // Email or Phone
-    subject?: string; // For Email
-    message?: string; // For SMS/WhatsApp
-    html?: string; // For Email
-    data?: any; // Dynamic data for templates
+export interface SendEmailParams {
+    to: string;
+    subject: string;
+    message: string;
 }
 
-export type NotificationChannel = 'email' | 'sms' | 'whatsapp';
+export interface SendSMSParams {
+    to: string;
+    message: string;
+}
 
-export const sendNotification = async (
-    channel: NotificationChannel,
-    payload: NotificationPayload
-) => {
-    console.log(`[Notification] Sending ${channel} to ${payload.to}...`);
+// Celebration Animation
+export const triggerSuccessCelebration = () => {
+    const scalar = 2;
+    const triangle = confetti.shapeFromPath({ path: 'M0 10 L5 0 L10 10z' });
 
-    try {
-        const apiBase = window.location.hostname === 'localhost' ? 'https://snackzo.tech' : '';
-        // Call Vercel Serverless Function (/api/notify)
-        const response = await fetch(`${apiBase}/api/notify`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                channel,
-                ...payload
-            })
+    confetti({
+        shapes: [triangle],
+        particleCount: 150,
+        spread: 120,
+        origin: { y: 0.6 },
+        colors: ['#ffffff', '#7c3aed', '#db2777'],
+        scalar
+    });
+
+    // Side Bursts
+    const end = Date.now() + (3 * 1000);
+    const colors = ['#7c3aed', '#ffffff'];
+
+    (function frame() {
+        confetti({
+            particleCount: 3,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: colors
+        });
+        confetti({
+            particleCount: 3,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: colors
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error(`[Notification] ${channel} Failed:`, data);
-            if (import.meta.env.DEV) {
-                toast.info(`[Dev] API call failed. Ensure local server running or check logs.`);
-            }
-            return false;
+        if (Date.now() < end) {
+            requestAnimationFrame(frame);
         }
-
-        console.log(`[Notification] ${channel} Sent!`, data);
-        return true;
-
-    } catch (err) {
-        console.error(`[Notification] Network Error:`, err);
-        return false;
-    }
+    }());
 };
 
-// Convenience Methods
+export const sendNotification = async (type: 'email' | 'sms', params: SendEmailParams | SendSMSParams) => {
+    try {
+        if (type === 'email') {
+            const { to, subject, message } = params as SendEmailParams;
 
-export const notifyOrderConfirmed = async (email: string, phone: string, orderDetails: any) => {
-    // 1. Send Email (Resend)
-    if (email) {
-        await sendNotification('email', {
-            to: email,
-            subject: `Order Confirmed #${orderDetails.id.slice(0, 6)}`,
-            html: `<h1>Order Confirmed!</h1><p>Your food is being prepared.</p><p>Total: ₹${orderDetails.total}</p>`
-        });
-    }
+            if (!RESEND_API_KEY || RESEND_API_KEY === 're_...') {
+                // Simulation Mode
+                console.log("[EMAIL SIMULATION]", { to, subject, message });
+                toast.info("Simulation Mode: Email sent to console");
+                return { success: true };
+            }
 
-    // 2. Send WhatsApp (Twilio)
-    if (phone) {
-        await sendNotification('whatsapp', {
-            to: phone,
-            message: ` *Snackzo Order Confirmed* \nOrder #${orderDetails.id.slice(0, 6)} is confirmed! We are preparing your food. 🍔`
-        });
+            const response = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${RESEND_API_KEY}`
+                },
+                body: JSON.stringify({
+                    from: 'Snackzo <onboarding@resend.dev>', // Default Resend test email
+                    to: [to],
+                    subject: subject,
+                    html: `<div style="font-family: sans-serif; padding: 20px; color: #111;">
+                            <h2 style="color: #7c3aed;">Message from Snackzo</h2>
+                            <p>${message}</p>
+                            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+                            <small style="color: #666;">This is an automated operational dispatch from your hostel food partner.</small>
+                           </div>`
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) return { success: true, data };
+            throw new Error(data.message || "Resend API Error");
+        }
+
+        else {
+            const { to, message } = params as SendSMSParams;
+
+            if (!SMS_API_KEY) {
+                console.log("[SMS SIMULATION]", { to, message });
+                toast.info("Simulation Mode: SMS sent to console");
+                return { success: true };
+            }
+
+            const response = await fetch("https://www.fast2sms.com/dev/bulkV2", {
+                method: "POST",
+                headers: {
+                    "authorization": SMS_API_KEY,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "route": "q",
+                    "sender_id": "TXTIND",
+                    "message": message,
+                    "language": "english",
+                    "flash": 0,
+                    "numbers": to
+                })
+            });
+
+            const data = await response.json();
+            if (data.return) return { success: true, data };
+            throw new Error(data.message || "Fast2SMS API Error");
+        }
+    } catch (error: any) {
+        console.error(`Dispatch Error [${type}]:`, error);
+        throw error;
     }
+};
+// Helper Wrappers for System Events
+export const notifyOrderConfirmed = async (phone: string, orderId: string, amount: number) => {
+    return sendNotification('sms', {
+        to: phone,
+        message: `Snackzo: Order #${orderId.slice(0, 6)} confirmed for Rs.${amount}. We are packing it now! 🍔`
+    });
 };
 
 export const notifyOrderOutForDelivery = async (phone: string, runnerName: string) => {
-    // SMS Priority for delivery updates
-    await sendNotification('sms', {
+    return sendNotification('sms', {
         to: phone,
         message: `Snackzo: Your order is Out for Delivery! ${runnerName} is on the way. 🛵`
+    });
+};
+
+export const notifyOrderArrived = async (phone: string) => {
+    return sendNotification('sms', {
+        to: phone,
+        message: `Snackzo: Your food has arrived! Please collect it from the runner. 📍`
     });
 };
