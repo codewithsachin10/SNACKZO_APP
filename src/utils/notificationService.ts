@@ -96,8 +96,8 @@ export const sendNotification = async (type: 'email' | 'sms', params: SendEmailP
 
             if (error) {
                 console.error("Edge Function Error:", error);
-                // If it's a 500 from our function, data might have error details
-                throw new Error(error.message || "Failed to send email");
+                // Return success anyway so order flow doesn't break
+                return { success: false, error: error.message };
             }
 
             return { success: true, data };
