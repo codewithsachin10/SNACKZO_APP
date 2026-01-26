@@ -275,10 +275,13 @@ export const sendPasswordResetEmail = async (email: string, resetLink: string) =
 
 // --- EXISTING SMS HELPERS ---
 
+// --- EXISTING SMS HELPERS ---
+
 export const notifyOrderConfirmed = async (phone: string, orderId: string, amount: number) => {
+    // Keep SMS extremely simple to avoid DLT blocking
     const result = await sendNotification('sms', {
         to: phone,
-        message: `Snackzo: Order #${orderId.slice(0, 6)} confirmed for Rs.${amount}. We are packing it now! 🍔`
+        message: `Snackzo Order #${orderId.slice(0, 6)} confirmed for Rs.${amount}.`
     });
     // This toast now accurately reflects that SMS is sent
     toast.success("Order confirmed!", { description: "We've sent a confirmation to your phone 📱" });
@@ -314,13 +317,13 @@ export const sendOrderConfirmationEmail = async (email: string, orderId: string,
 export const notifyOrderOutForDelivery = async (phone: string, runnerName: string) => {
     return sendNotification('sms', {
         to: phone,
-        message: `Snackzo: Your order is Out for Delivery! ${runnerName} is on the way. 🛵`
+        message: `Snackzo: Order Out for Delivery by ${runnerName}.`
     });
 };
 
 export const notifyOrderArrived = async (phone: string) => {
     return sendNotification('sms', {
         to: phone,
-        message: `Snackzo: Your food has arrived! Please collect it from the runner. 📍`
+        message: `Snackzo: Your order has arrived at location.`
     });
 };
