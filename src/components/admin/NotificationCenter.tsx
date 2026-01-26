@@ -111,11 +111,25 @@ export default function NotificationCenter() {
                 if (!target) continue;
 
                 try {
-                    await sendNotification(sendType, {
-                        to: target,
-                        subject: subject || "Update from Snackzo",
-                        message: message.replace(/{name}/g, user.full_name || 'Student')
-                    });
+                    // Use Edge Function for Email (Server-Side)
+                    if (sendType === 'email') {
+                        const { error } = await supabase.functions.invoke('send-email', {
+                            body: {
+                                to: target,
+                                subject: subject || "Update from Snackzo",
+                                html: `<div>${message.replace(/{name}/g, user.full_name || 'Student')}</div>`
+                            }
+                        });
+                        if (error) throw error;
+                    }
+                    // Use Existing Helper for SMS (Client-Side Simulation)
+                    else {
+                        await sendNotification('sms', {
+                            to: target,
+                            message: message.replace(/{name}/g, user.full_name || 'Student')
+                        });
+                    }
+
                     successCount++;
                 } catch (e) {
                     console.error("Single Node Failure:", e);
