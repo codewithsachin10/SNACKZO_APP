@@ -76,7 +76,7 @@ export const sendNotification = async (type: 'email' | 'sms', params: SendEmailP
                 if (isSimulationMode) {
                     toast.info("Simulation Mode Enabled", { description: "Email logged to console instead of sending." });
                 } else {
-                    toast.error("Missing Resend API Key", { description: "Please configure VITE_RESEND_API_KEY in .env" });
+                    toast.error("Missing API Key", { description: "Ensure 'VITE_RESEND_API_KEY' is set in Vercel/Env." });
                 }
                 return { success: true };
             }
