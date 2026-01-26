@@ -81,28 +81,26 @@ export const sendNotification = async (type: 'email' | 'sms', params: SendEmailP
                 return { success: true };
             }
 
-            const response = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${RESEND_API_KEY}`
+            // Use Supabase Edge Function to avoid CORS issues
+            const { data, error } = await supabase.functions.invoke('send-email', {
+                body: {
+                    to,
+                    subject,
+                    html: html || message, // Fallback if html is missing
+                    message // For backward compat
                 },
-                body: JSON.stringify({
-                    from: 'Snackzo <onboarding@resend.dev>',
-                    to: [to],
-                    subject: subject,
-                    html: html || `<div style="font-family: sans-serif; padding: 20px; color: #111; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 10px;">
-                            <h2 style="color: #7c3aed;">Message from Snackzo</h2>
-                            <p>${message}</p>
-                            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-                            <small style="color: #666;">This is an automated operational dispatch from your hostel food partner.</small>
-                           </div>`
-                })
+                headers: {
+                    "x-resend-api-key": RESEND_API_KEY // Pass key securely to Edge Function
+                }
             });
 
-            const data = await response.json();
-            if (response.ok) return { success: true, data };
-            throw new Error(data.message || "Resend API Error");
+            if (error) {
+                console.error("Edge Function Error:", error);
+                // If it's a 500 from our function, data might have error details
+                throw new Error(error.message || "Failed to send email");
+            }
+
+            return { success: true, data };
         }
 
         else {
