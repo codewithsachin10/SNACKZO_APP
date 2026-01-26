@@ -490,8 +490,6 @@ const PremiumOrderTracking = () => {
                     <PremiumLiveMap
                       runnerLocation={runnerLocation}
                       deliveryAddress={order.delivery_address}
-                      storeLocation={{ lat: 13.0827, lng: 80.2707 }}
-                      destinationLocation={{ lat: 13.0927, lng: 80.2807 }}
                       runnerName={runner.name}
                       runnerPhone={runner.phone}
                       onCallRunner={handleCallRunner}
@@ -559,8 +557,12 @@ const PremiumOrderTracking = () => {
                   <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-secondary shrink-0"><DollarSign size={24} /></div>
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground mb-1">Payment via</h3>
-                    <p className="font-bold text-lg leading-tight uppercase italic">{order.payment_method === "upi" ? "Digital UPI" : "Cash on Delivery"}</p>
-                    <p className={cn("text-xs font-black uppercase tracking-widest mt-2", order.payment_method === 'upi' ? 'text-lime' : 'text-amber-500')}>{order.payment_method === 'upi' ? '✓ Transaction Successful' : '⚠ Payment Pending'}</p>
+                    <p className="font-bold text-lg leading-tight uppercase italic">
+                      {order.payment_method === "cod" ? "Cash on Delivery" : `Online (${order.payment_method})`}
+                    </p>
+                    <p className={cn("text-xs font-black uppercase tracking-widest mt-2", order.payment_method !== 'cod' ? 'text-lime' : 'text-amber-500')}>
+                      {order.payment_method !== 'cod' ? '✓ Paid Online' : '⚠ Collect Cash'}
+                    </p>
                   </div>
                 </div>
               </div>

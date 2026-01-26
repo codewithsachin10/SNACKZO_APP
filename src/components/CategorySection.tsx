@@ -40,11 +40,11 @@ const CategorySection = () => {
             .select("*", { count: "exact", head: true })
             .eq("category_id", cat.id)
             .eq("is_available", true);
-          
+
           return { ...cat, product_count: count || 0 };
         })
       );
-      
+
       setCategories(categoriesWithCounts);
     }
     setIsLoading(false);
@@ -72,7 +72,7 @@ const CategorySection = () => {
   }
 
   return (
-    <section className="py-12 bg-background border-b-3 border-foreground">
+    <section id="categories-section" className="py-12 bg-background border-b-3 border-foreground">
       <div className="container mx-auto px-4">
         <h2 className="text-3xl md:text-4xl font-bold uppercase mb-8">
           Shop by Category

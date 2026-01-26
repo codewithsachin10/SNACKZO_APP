@@ -204,7 +204,7 @@ export function PremiumLiveMap({
 
   const destPos: [number, number] = destinationLocation
     ? [destinationLocation.lat, destinationLocation.lng]
-    : [storeLocation.lat + 0.012, storeLocation.lng + 0.008];
+    : [runnerPos[0] + 0.004, runnerPos[1] + 0.004];
 
   // Calculate distance and ETA
   useEffect(() => {
@@ -228,12 +228,7 @@ export function PremiumLiveMap({
     setEta(`${etaMinutes} min`);
   }, [runnerPos, destPos]);
 
-  // Generate curved route
-  const routeFromStore = generateCurvedRoute(
-    [storeLocation.lat, storeLocation.lng],
-    runnerPos,
-    15
-  );
+
   const routeToDestination = generateCurvedRoute(runnerPos, destPos, 20);
 
   const tileUrls = {
@@ -310,15 +305,7 @@ export function PremiumLiveMap({
         <TileLayer url={tileUrls[mapStyle]} />
 
         {/* Completed Route (Store to Runner) - Faded */}
-        <Polyline
-          positions={routeFromStore}
-          pathOptions={{
-            color: "#6B7280",
-            weight: 3,
-            opacity: 0.3,
-            dashArray: "10, 10"
-          }}
-        />
+
 
         {/* Active Route (Runner to Destination) - Highlighted with Animation */}
         {/* Glow Layer */}
@@ -356,14 +343,7 @@ export function PremiumLiveMap({
         />
 
         {/* Markers */}
-        <Marker position={[storeLocation.lat, storeLocation.lng]} icon={storeIcon}>
-          <Popup className="custom-popup">
-            <div className="text-center p-2">
-              <p className="font-bold text-base">🏪 SnackZo Store</p>
-              <p className="text-xs text-gray-500 mt-1">Order picked up ✓</p>
-            </div>
-          </Popup>
-        </Marker>
+
 
         <Marker position={runnerPos} icon={runnerIcon}>
           <Popup className="custom-popup">
@@ -384,7 +364,6 @@ export function PremiumLiveMap({
         </Marker>
 
         <FitBounds bounds={[
-          [storeLocation.lat, storeLocation.lng],
           runnerPos,
           destPos
         ]} padding={80} />

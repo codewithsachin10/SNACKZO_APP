@@ -1197,6 +1197,7 @@ const Checkout = () => {
         <OrderCelebration
           show={showCelebration}
           type="placed"
+          email={user?.email}
           onComplete={() => {
             // Now navigate
             if (createdOrderId) {

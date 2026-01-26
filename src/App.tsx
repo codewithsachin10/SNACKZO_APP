@@ -12,12 +12,16 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import Feedback from "./pages/Feedback";
 import CompleteProfile from "./pages/CompleteProfile";
 import Products from "./pages/Products";
 import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
 // import OrderTracking from "./pages/OrderTracking"; // Old tracking
 import PremiumOrderTracking from "./pages/PremiumOrderTracking"; // Premium tracking
+import FormBuilderPage from "@/pages/FormBuilderPage";
+import FormViewerPage from "@/pages/FormViewerPage";
+import FormResponsesPage from "@/pages/FormResponsesPage";
 import Receipt from "./pages/Receipt";
 import AdminDashboard from "./pages/AdminDashboard";
 import RunnerDashboard from "./pages/RunnerDashboard";
@@ -101,6 +105,9 @@ const App = () => {
                     <Route path="/orders/:orderId" element={<PremiumOrderTracking />} />
                     <Route path="/receipt/:orderId" element={<Receipt />} />
                     <Route path="/admin" element={<AdminDashboard />} />
+                    <Route path="/admin/form-builder" element={<FormBuilderPage />} />
+                    <Route path="/forms/:formId" element={<FormViewerPage />} />
+                    <Route path="/admin/forms/:formId/responses" element={<FormResponsesPage />} />
                     <Route path="/runner" element={<RunnerDashboard />} />
                     <Route path="/wallet" element={<Wallet />} />
                     <Route path="/favorites" element={<Favorites />} />
@@ -109,6 +116,7 @@ const App = () => {
                     <Route path="/settings/notifications" element={<NotificationSettings />} />
                     <Route path="/payment-methods" element={<PaymentMethods />} />
                     <Route path="/support" element={<Support />} />
+                    <Route path="/feedback" element={<Feedback />} />
                     {/* New Feature Routes */}
                     <Route path="/group-order" element={<GroupOrdering />} />
                     <Route path="/group-order/:groupId" element={<GroupOrdering />} />

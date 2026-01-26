@@ -41,14 +41,16 @@ const Footer = () => {
             <h3 className="font-bold uppercase text-sm mb-4 text-accent">Contact</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>📍 Chennai, Tamil Nadu</li>
-              <li>📞 +91 98765 43210</li>
-              <li>✉️ hello@snackzo.com</li>
+              <li>📞 +91 9952111626</li>
+              <li>✉️ codewithsachin10@gmail.com</li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>© 2024 Snackzo. Made with 💜 for hungry souls.</p>
+          <p className="flex items-center justify-center gap-1">
+            © 2024 Snackzo. Made with 💜 by <span className="text-primary font-bold">Sachin</span>
+          </p>
         </div>
       </div>
     </footer>

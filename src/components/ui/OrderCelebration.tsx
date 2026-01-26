@@ -6,10 +6,11 @@ import confetti from 'canvas-confetti';
 interface OrderCelebrationProps {
     show: boolean;
     type: 'placed' | 'delivered';
+    email?: string | null;
     onComplete: () => void;
 }
 
-const OrderCelebration = ({ show, type, onComplete }: OrderCelebrationProps) => {
+const OrderCelebration = ({ show, type, email, onComplete }: OrderCelebrationProps) => {
     const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
     useEffect(() => {
@@ -44,8 +45,8 @@ const OrderCelebration = ({ show, type, onComplete }: OrderCelebrationProps) => 
                 }
             }());
 
-            // Auto close after 3.5s
-            const timer = setTimeout(onComplete, 3500);
+            // Auto close after 6s (increased for reading email notice)
+            const timer = setTimeout(onComplete, 6000);
             return () => clearTimeout(timer);
         }
     }, [show, type, onComplete]);
@@ -119,20 +120,25 @@ const OrderCelebration = ({ show, type, onComplete }: OrderCelebrationProps) => 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md"
                 >
                     <motion.div
-                        initial={{ scale: 0.5, y: 100 }}
-                        animate={{ scale: 1, y: 0 }}
-                        exit={{ scale: 0.5, y: 100 }}
-                        className="neu-card bg-background p-8 text-center max-w-sm mx-4 border-2 border-lime shadow-[0_0_50px_rgba(132,204,22,0.5)]"
+                        initial={{ scale: 0.8, y: 50, opacity: 0 }}
+                        animate={{ scale: 1, y: 0, opacity: 1 }}
+                        exit={{ scale: 0.8, y: 50, opacity: 0 }}
+                        transition={{ type: "spring", bounce: 0.4 }}
+                        className="neu-card bg-background p-6 md:p-8 text-center max-w-sm mx-4 border-2 border-lime shadow-[0_0_50px_rgba(132,204,22,0.3)] relative overflow-hidden"
                     >
+                        {/* Background Decorations */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-lime/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+
                         <div className="relative mb-6 mx-auto w-24 h-24">
                             {/* Pulse Effect */}
                             <motion.div
-                                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                                animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
                                 transition={{ repeat: Infinity, duration: 2 }}
-                                className="absolute inset-0 bg-lime/30 rounded-full"
+                                className="absolute inset-0 bg-lime/20 rounded-full"
                             />
 
                             {/* Animated Circle Background */}
@@ -140,10 +146,10 @@ const OrderCelebration = ({ show, type, onComplete }: OrderCelebrationProps) => 
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                                className="w-full h-full bg-lime rounded-full flex items-center justify-center relative z-10 shadow-xl shadow-lime/40"
+                                className="w-full h-full bg-lime rounded-full flex items-center justify-center relative z-10 shadow-xl shadow-lime/30"
                             >
                                 {type === 'placed' ? (
-                                    <svg className="w-12 h-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <svg className="w-12 h-12 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                         <motion.path
                                             initial={{ pathLength: 0, opacity: 0 }}
                                             animate={{ pathLength: 1, opacity: 1 }}
@@ -152,25 +158,58 @@ const OrderCelebration = ({ show, type, onComplete }: OrderCelebrationProps) => 
                                         />
                                     </svg>
                                 ) : (
-                                    <PartyPopper className="text-white w-12 h-12 animate-bounce" />
+                                    <PartyPopper className="text-black w-12 h-12 animate-bounce" />
                                 )}
                             </motion.div>
+
+                            {/* Floating Envelope for placed orders */}
+                            {type === 'placed' && email && (
+                                <motion.div
+                                    initial={{ scale: 0, x: 20, y: 20 }}
+                                    animate={{ scale: 1, x: 0, y: 0 }}
+                                    transition={{ delay: 0.5, type: "spring" }}
+                                    className="absolute -bottom-2 -right-2 bg-white text-lime p-2 rounded-full shadow-lg border-2 border-lime z-20"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+                                </motion.div>
+                            )}
                         </div>
 
-                        <h2 className="text-3xl font-black uppercase mb-3 tracking-tight bg-gradient-to-br from-white to-lime/80 bg-clip-text text-transparent">
+                        <h2 className="text-3xl font-black uppercase mb-2 tracking-tight">
                             {type === 'placed' ? 'Order Placed!' : 'Delivered!'}
                         </h2>
-                        <p className="text-muted-foreground font-medium mb-8 leading-relaxed">
-                            {type === 'placed'
-                                ? 'Sit back and relax. Your snacks are on the way!'
-                                : 'Your order has arrived. Enjoy!'}
-                        </p>
 
-                        <div className="w-full h-1.5 bg-muted/30 rounded-full overflow-hidden backdrop-blur-sm">
+                        {type === 'placed' && email ? (
+                            <div className="mb-6">
+                                <p className="text-sm font-medium mb-4">
+                                    Confirmation email sent to<br />
+                                    <span className="text-lime font-bold">{email}</span>
+                                </p>
+
+                                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 text-left">
+                                    <div className="flex gap-3">
+                                        <div className="text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" /></svg>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground leading-relaxed">
+                                            <span className="font-bold text-yellow-600 dark:text-yellow-500">Note:</span> If not received, please check your <b>Spam/Junk</b> folder.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-muted-foreground font-medium mb-8 leading-relaxed">
+                                {type === 'placed'
+                                    ? 'Sit back and relax. Your snacks are on the way!'
+                                    : 'Your order has arrived. Enjoy!'}
+                            </p>
+                        )}
+
+                        <div className="w-full h-1.5 bg-muted/30 rounded-full overflow-hidden backdrop-blur-sm mt-4">
                             <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: '100%' }}
-                                transition={{ duration: 3.5, ease: "linear" }}
+                                transition={{ duration: 6, ease: "linear" }}
                                 className="h-full bg-gradient-to-r from-lime to-green-400"
                             />
                         </div>

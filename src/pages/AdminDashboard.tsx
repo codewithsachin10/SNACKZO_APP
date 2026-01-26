@@ -26,8 +26,11 @@ import LiveSupport from "@/components/admin/LiveSupport";
 import DatabaseManager from "@/components/admin/DatabaseManager";
 import SnackzoPayManagement from "@/components/admin/SnackzoPayManagement";
 import NotificationCenter from "@/components/admin/NotificationCenter";
+import FeedbackManager from "@/components/admin/FeedbackManager";
 
 import { AdminSidebar, AdminTab } from "@/components/admin/AdminSidebar";
+
+
 
 interface OrderItem {
   id: string;
@@ -346,6 +349,16 @@ const AdminDashboard = () => {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              {/* Form Builder Button */}
+              {activeTab === 'feedback' && (
+                <button
+                  onClick={() => navigate('/admin/form-builder')}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary/20 text-primary hover:bg-primary/30 rounded-xl transition-all font-bold text-xs active:scale-95"
+                >
+                  <Plus size={16} /> Create Form
+                </button>
+              )}
+
               <button
                 onClick={fetchData}
                 className="p-2.5 hover:bg-muted rounded-xl transition-all border border-transparent hover:border-border active:scale-95"
@@ -602,6 +615,7 @@ const AdminDashboard = () => {
           {activeTab === "support" && <SupportManagement />}
           {activeTab === "live-chat" && <LiveSupport />}
           {activeTab === "notifications" && <NotificationCenter />}
+          {activeTab === "feedback" && <FeedbackManager />}
 
         </div>
       </main>
@@ -637,6 +651,8 @@ const AdminDashboard = () => {
           </div>
         </>
       )}
+
+      {/* Dynamic Form Builder Modal - REMOVED (Moved to full page) */}
     </div>
   );
 };

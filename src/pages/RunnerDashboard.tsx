@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { notifyOrderOutForDelivery } from "@/utils/smsService";
 import {
   Package, Phone, MapPin, Check, Truck, RefreshCw, User, LogOut, Home, TrendingUp, History, MessageCircle, Navigation, CheckCheck, UserPlus, X,
-  Timer, Coffee, AlertTriangle, ShieldAlert, IndianRupee, ExternalLink, QrCode
+  Timer, Coffee, AlertTriangle, ShieldAlert, IndianRupee, ExternalLink, QrCode, ChevronDown, ChevronUp
 } from "lucide-react";
 import { Chat } from "@/components/Chat";
 import { initEmailService, sendOrderEmail } from "@/utils/emailService";
@@ -1035,12 +1035,40 @@ const RunnerDashboard = () => {
                           <p className="font-bold">{order.profile?.full_name || 'Guest'}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-muted-foreground font-bold uppercase">Payment</p>
-                          <p className={`font-bold ${order.payment_method === 'cod' ? 'text-orange-500' : 'text-green-500'}`}>
-                            {order.payment_method === 'cod' ? `Collect ₹${order.total}` : 'PAID'}
-                          </p>
+                          <p className="text-xs text-muted-foreground font-bold uppercase">Payment Status</p>
+                          {order.payment_method === 'cod' ? (
+                            <span className="inline-flex items-center gap-1 bg-orange-500/10 text-orange-600 px-2 py-1 rounded-md border border-orange-500/20 font-black text-sm uppercase">
+                              <AlertTriangle size={12} className="fill-orange-500/20" /> Collect ₹{order.total}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-600 px-2 py-1 rounded-md border border-green-500/20 font-black text-sm uppercase">
+                              <CheckCheck size={12} /> Already Paid
+                            </span>
+                          )}
                         </div>
                       </div>
+
+                      {/* Order Items Toggle */}
+                      <details className="mb-4 group bg-muted/20 rounded-xl border border-border/50 overflow-hidden">
+                        <summary className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30 transition-colors list-none">
+                          <span className="font-bold text-sm flex items-center gap-2">
+                            <Package size={16} className="text-primary" />
+                            View Order Items ({order.items?.length || 0})
+                          </span>
+                          <ChevronDown size={16} className="text-muted-foreground group-open:rotate-180 transition-transform" />
+                        </summary>
+                        <div className="p-3 pt-0 border-t border-border/30 bg-background/50">
+                          <ul className="space-y-2 mt-2">
+                            {order.items?.map((item, idx) => (
+                              <li key={idx} className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground font-medium flex gap-2">
+                                  <span className="font-bold text-foreground">x{item.quantity}</span> {item.product_name}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </details>
 
                       {/* Actions Grid */}
                       <div className="grid grid-cols-2 gap-3">
@@ -1174,143 +1202,151 @@ const RunnerDashboard = () => {
       </main>
 
       {/* Chat Modal */}
-      {showChat && (
-        <Chat
-          orderId={showChat}
-          runnerName={runner?.name}
-          isModal={true}
-          onClose={() => setShowChat(null)}
-          role="runner"
-          currentUserId={runner?.id}
-          targetUserId={orders.find(o => o.id === showChat)?.user_id || deliveryHistory.find(o => o.id === showChat)?.user_id}
-        />
-      )}
+      {
+        showChat && (
+          <Chat
+            orderId={showChat}
+            runnerName={runner?.name}
+            isModal={true}
+            onClose={() => setShowChat(null)}
+            role="runner"
+            currentUserId={runner?.id}
+            targetUserId={orders.find(o => o.id === showChat)?.user_id || deliveryHistory.find(o => o.id === showChat)?.user_id}
+          />
+        )
+      }
 
       {/* OTP MODAL */}
-      {otpModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="glass-card w-full max-w-sm p-6 relative animate-in fade-in zoom-in-95">
-            <button onClick={() => setOtpModal({ isOpen: false, orderId: null })} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X size={20} /></button>
-            <h3 className="text-xl font-bold text-center mb-2">Verify Delivery</h3>
-            <p className="text-sm text-center text-muted-foreground mb-6">Enter the 4-digit code provided by the customer.</p>
-            <div className="flex justify-center gap-4 mb-8">
-              {otpInput.map((digit, i) => (
-                <input key={i} id={`otp-${i}`} type="tel" maxLength={1} value={digit} onChange={(e) => handleOtpChange(i, e.target.value)} className="w-12 h-14 bg-muted/50 border-2 border-border rounded-xl text-center text-2xl font-bold focus:border-primary focus:outline-none transition-colors" />
-              ))}
-            </div>
-            <button onClick={verifyAndCompleteDelivery} disabled={otpInput.join("").length !== 4} className="w-full neon-btn bg-lime text-lime-foreground py-3 font-bold disabled:opacity-50">Verify & Complete</button>
-          </div>
-        </div>
-      )}
-      {/* NAVIGATION MODAL */}
-      {navModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm" onClick={() => setNavModal({ ...navModal, isOpen: false })}>
-          <div className="glass-card w-full max-w-sm p-6 relative animate-in slide-in-from-bottom duration-300 rounded-t-3xl sm:rounded-3xl border-t border-x sm:border border-border/50 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-6 sm:hidden" />
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Navigation size={22} className="text-blue-500" /> Start Navigation</h3>
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  if (navModal.orderId) setShowMapForOrder(navModal.orderId);
-                  setNavModal({ ...navModal, isOpen: false });
-                }}
-                className="w-full p-4 bg-muted/30 hover:bg-muted/50 rounded-xl flex items-center gap-4 transition-all group border border-transparent hover:border-primary/20"
-              >
-                <div className="w-12 h-12 bg-blue-500/20 text-blue-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner"><MapPin size={24} /></div>
-                <div className="text-left">
-                  <p className="font-bold text-lg">In-App Navigation</p>
-                  <p className="text-xs text-muted-foreground">Stay within Snackzo Runner</p>
-                </div>
-              </button>
-
-              <button
-                onClick={() => {
-                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navModal.address || '')}`, '_blank');
-                  setNavModal({ ...navModal, isOpen: false });
-                }}
-                className="w-full p-4 bg-muted/30 hover:bg-muted/50 rounded-xl flex items-center gap-4 transition-all group border border-transparent hover:border-green-500/20"
-              >
-                <div className="w-12 h-12 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner"><ExternalLink size={24} /></div>
-                <div className="text-left">
-                  <p className="font-bold text-lg">Google Maps</p>
-                  <p className="text-xs text-muted-foreground">Get fastest traffic routes</p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PAYMENT COLLECTION MODAL */}
-      {paymentModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="glass-card w-full max-w-sm p-6 relative animate-in zoom-in-95 shadow-2xl border-2 border-primary/20">
-            <button onClick={() => setPaymentModal({ ...paymentModal, isOpen: false })} className="absolute top-4 right-4 p-2 hover:bg-muted rounded-full"><X size={20} /></button>
-
-            <div className="text-center mb-6">
-              <h3 className="text-xl font-bold mb-1">Collect Payment</h3>
-              <div className="flex items-center justify-center gap-1">
-                <span className="text-4xl font-black text-orange-500">₹{paymentModal.amount}</span>
+      {
+        otpModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <div className="glass-card w-full max-w-sm p-6 relative animate-in fade-in zoom-in-95">
+              <button onClick={() => setOtpModal({ isOpen: false, orderId: null })} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X size={20} /></button>
+              <h3 className="text-xl font-bold text-center mb-2">Verify Delivery</h3>
+              <p className="text-sm text-center text-muted-foreground mb-6">Enter the 4-digit code provided by the customer.</p>
+              <div className="flex justify-center gap-4 mb-8">
+                {otpInput.map((digit, i) => (
+                  <input key={i} id={`otp-${i}`} type="tel" maxLength={1} value={digit} onChange={(e) => handleOtpChange(i, e.target.value)} className="w-12 h-14 bg-muted/50 border-2 border-border rounded-xl text-center text-2xl font-bold focus:border-primary focus:outline-none transition-colors" />
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground bg-muted/50 inline-block px-2 py-1 rounded mt-2">Cash on Delivery</p>
+              <button onClick={verifyAndCompleteDelivery} disabled={otpInput.join("").length !== 4} className="w-full neon-btn bg-lime text-lime-foreground py-3 font-bold disabled:opacity-50">Verify & Complete</button>
             </div>
-
-            {!showQr ? (
+          </div>
+        )
+      }
+      {/* NAVIGATION MODAL */}
+      {
+        navModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm" onClick={() => setNavModal({ ...navModal, isOpen: false })}>
+            <div className="glass-card w-full max-w-sm p-6 relative animate-in slide-in-from-bottom duration-300 rounded-t-3xl sm:rounded-3xl border-t border-x sm:border border-border/50 shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-6 sm:hidden" />
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Navigation size={22} className="text-blue-500" /> Start Navigation</h3>
               <div className="space-y-3">
                 <button
-                  onClick={() => setShowQr(true)}
-                  className="w-full p-4 bg-primary/10 border-2 border-primary/20 hover:bg-primary/20 rounded-xl flex items-center justify-center gap-3 transition-all group"
+                  onClick={() => {
+                    if (navModal.orderId) setShowMapForOrder(navModal.orderId);
+                    setNavModal({ ...navModal, isOpen: false });
+                  }}
+                  className="w-full p-4 bg-muted/30 hover:bg-muted/50 rounded-xl flex items-center gap-4 transition-all group border border-transparent hover:border-primary/20"
                 >
-                  <div className="p-2 bg-primary text-primary-foreground rounded-lg group-hover:scale-110 transition-transform"><QrCode size={20} /></div>
-                  <span className="font-bold text-lg">Show UPI QR Code</span>
+                  <div className="w-12 h-12 bg-blue-500/20 text-blue-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner"><MapPin size={24} /></div>
+                  <div className="text-left">
+                    <p className="font-bold text-lg">In-App Navigation</p>
+                    <p className="text-xs text-muted-foreground">Stay within Snackzo Runner</p>
+                  </div>
                 </button>
-
-                <div className="relative py-2">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-muted" /></div>
-                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">OR</span></div>
-                </div>
 
                 <button
                   onClick={() => {
-                    setPaymentModal({ ...paymentModal, isOpen: false });
-                    setOtpModal({ isOpen: true, orderId: paymentModal.orderId });
+                    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navModal.address || '')}`, '_blank');
+                    setNavModal({ ...navModal, isOpen: false });
                   }}
-                  className="w-full p-4 bg-green-500/10 border-2 border-green-500/20 hover:bg-green-500/20 rounded-xl flex items-center justify-center gap-3 transition-all group"
+                  className="w-full p-4 bg-muted/30 hover:bg-muted/50 rounded-xl flex items-center gap-4 transition-all group border border-transparent hover:border-green-500/20"
                 >
-                  <div className="p-2 bg-green-500 text-white rounded-lg group-hover:scale-110 transition-transform"><IndianRupee size={20} /></div>
-                  <span className="font-bold text-lg">Cash Received</span>
+                  <div className="w-12 h-12 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner"><ExternalLink size={24} /></div>
+                  <div className="text-left">
+                    <p className="font-bold text-lg">Google Maps</p>
+                    <p className="text-xs text-muted-foreground">Get fastest traffic routes</p>
+                  </div>
                 </button>
               </div>
-            ) : (
-              <div className="text-center animate-in fade-in slide-in-from-bottom-4">
-                <div className="bg-white p-4 rounded-xl inline-block mb-4 shadow-xl border-4 border-white">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=snackzo@upi&pn=Snackzo&am=${paymentModal.amount}&tr=${paymentModal.orderId}`}
-                    alt="Payment QR"
-                    className="w-48 h-48"
-                  />
-                </div>
-                <p className="text-sm font-bold mb-4 text-muted-foreground">Ask customer to scan this QR</p>
-
-                <button
-                  onClick={() => {
-                    setPaymentModal({ ...paymentModal, isOpen: false });
-                    setOtpModal({ isOpen: true, orderId: paymentModal.orderId });
-                  }}
-                  className="w-full neon-btn bg-lime text-lime-foreground py-3 font-bold rounded-xl mb-3 shadow-lg shadow-lime/20"
-                >
-                  <CheckCheck size={18} className="inline mr-2" />
-                  Payment Verified
-                </button>
-
-                <button onClick={() => setShowQr(false)} className="text-sm text-primary font-medium hover:underline">Back to Options</button>
-              </div>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-    </div>
+      {/* PAYMENT COLLECTION MODAL */}
+      {
+        paymentModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <div className="glass-card w-full max-w-sm p-6 relative animate-in zoom-in-95 shadow-2xl border-2 border-primary/20">
+              <button onClick={() => setPaymentModal({ ...paymentModal, isOpen: false })} className="absolute top-4 right-4 p-2 hover:bg-muted rounded-full"><X size={20} /></button>
+
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-bold mb-1">Collect Payment</h3>
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-4xl font-black text-orange-500">₹{paymentModal.amount}</span>
+                </div>
+                <p className="text-xs text-muted-foreground bg-muted/50 inline-block px-2 py-1 rounded mt-2">Cash on Delivery</p>
+              </div>
+
+              {!showQr ? (
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setShowQr(true)}
+                    className="w-full p-4 bg-primary/10 border-2 border-primary/20 hover:bg-primary/20 rounded-xl flex items-center justify-center gap-3 transition-all group"
+                  >
+                    <div className="p-2 bg-primary text-primary-foreground rounded-lg group-hover:scale-110 transition-transform"><QrCode size={20} /></div>
+                    <span className="font-bold text-lg">Show UPI QR Code</span>
+                  </button>
+
+                  <div className="relative py-2">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-muted" /></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">OR</span></div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setPaymentModal({ ...paymentModal, isOpen: false });
+                      setOtpModal({ isOpen: true, orderId: paymentModal.orderId });
+                    }}
+                    className="w-full p-4 bg-green-500/10 border-2 border-green-500/20 hover:bg-green-500/20 rounded-xl flex items-center justify-center gap-3 transition-all group"
+                  >
+                    <div className="p-2 bg-green-500 text-white rounded-lg group-hover:scale-110 transition-transform"><IndianRupee size={20} /></div>
+                    <span className="font-bold text-lg">Cash Received</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center animate-in fade-in slide-in-from-bottom-4">
+                  <div className="bg-white p-4 rounded-xl inline-block mb-4 shadow-xl border-4 border-white">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=snackzo@upi&pn=Snackzo&am=${paymentModal.amount}&tr=${paymentModal.orderId}`}
+                      alt="Payment QR"
+                      className="w-48 h-48"
+                    />
+                  </div>
+                  <p className="text-sm font-bold mb-4 text-muted-foreground">Ask customer to scan this QR</p>
+
+                  <button
+                    onClick={() => {
+                      setPaymentModal({ ...paymentModal, isOpen: false });
+                      setOtpModal({ isOpen: true, orderId: paymentModal.orderId });
+                    }}
+                    className="w-full neon-btn bg-lime text-lime-foreground py-3 font-bold rounded-xl mb-3 shadow-lg shadow-lime/20"
+                  >
+                    <CheckCheck size={18} className="inline mr-2" />
+                    Payment Verified
+                  </button>
+
+                  <button onClick={() => setShowQr(false)} className="text-sm text-primary font-medium hover:underline">Back to Options</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      }
+
+    </div >
   );
 };
 

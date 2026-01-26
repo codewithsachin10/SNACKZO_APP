@@ -29,7 +29,8 @@ export type AdminTab =
     | "database"
     | "system-health"
     | "support"
-    | "settings";
+    | "settings"
+    | "feedback";
 
 interface AdminSidebarProps {
     activeTab: AdminTab;
@@ -55,6 +56,7 @@ const menuItems: { id: AdminTab; label: string; icon: any; badge?: string }[] = 
     { id: "announcements", label: "Notify", icon: Bell },
     { id: "live-chat", label: "Live Chat", icon: HelpCircle, badge: "NEW" },
     { id: "notifications", label: "Mail & SMS", icon: Mail, badge: "NEW" },
+    { id: "feedback", label: "Feedback", icon: HelpCircle, badge: "HOT" },
     { id: "wallet", label: "Wallet", icon: Wallet },
     { id: "snackzopay", label: "SnackzoPay", icon: CreditCard, badge: "NEW" },
     { id: "alerts", label: "Alerts", icon: AlertTriangle },

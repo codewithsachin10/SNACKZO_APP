@@ -10,8 +10,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { notifyOrderConfirmed, sendOTPEmail, sendWelcomeEmail, sendPasswordResetEmail } from "@/utils/notificationService";
 import confetti from 'canvas-confetti';
-
-// EmailJS configuration removed in favor of Resend via NotificationService
+import { MailSentNotification } from "@/components/MailSentNotification";
 
 const Auth = () => {
   // --- MODE: signup, signin, or forgot ---
@@ -21,7 +20,8 @@ const Auth = () => {
   // 1: Name, 2: Phone, 3: Email, 4: OTP, 5: Password, 6: Preview
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
 
-  // --- FORM DATA ---
+  // Custom Email Success State
+  const [showMailSuccess, setShowMailSuccess] = useState<{ type: string, email: string } | null>(null);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -586,7 +586,22 @@ const Auth = () => {
 
       case 4: return (
         <motion.form key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} onSubmit={handleStep4} className="space-y-6">
-          <p className="text-sm text-muted-foreground text-center">Enter the 6-digit code sent to <span className="font-semibold text-foreground">{email}</span></p>
+
+          {/* Enhanced Email Sent Header for OTP */}
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 relative">
+              <Mail size={32} className="text-primary" />
+              <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1 border-4 border-card">
+                <CheckCircle size={10} className="text-white" />
+              </div>
+            </div>
+            <h3 className="text-xl font-bold mb-1">OTP Sent!</h3>
+            <p className="text-sm text-muted-foreground">
+              We've sent a 6-digit code to <br />
+              <span className="font-semibold text-foreground">{email}</span>
+            </p>
+          </div>
+
           <div className="flex justify-center gap-2">
             {otp.map((digit, i) => (
               <input key={i} ref={(el) => (otpInputRefs.current[i] = el)} type="text" inputMode="numeric" maxLength={1} value={digit}
@@ -594,6 +609,17 @@ const Auth = () => {
                 className="w-12 h-14 text-center text-2xl font-bold bg-muted/30 border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none" />
             ))}
           </div>
+
+          {/* Spam Notice Inline */}
+          <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-lg p-3 text-left w-full">
+            <div className="flex gap-2">
+              <div className="shrink-0 mt-0.5 text-yellow-500"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" /></svg></div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <span className="font-bold text-yellow-600 dark:text-yellow-500">Note:</span> If not received, please check your <b>Spam/Junk</b> folder and mark as "Not Spam".
+              </p>
+            </div>
+          </div>
+
           <div className="flex items-center justify-center text-sm">
             {timer > 0 ? <span className="text-muted-foreground">Resend in <span className="font-mono font-bold">{timer}s</span></span> :
               <button type="button" onClick={resendOtp} className="text-primary font-bold hover:underline">Resend OTP</button>}
@@ -689,8 +715,6 @@ const Auth = () => {
 
     setIsLoading(true);
     try {
-      const resetLink = `${window.location.origin}/auth?mode=reset`; // Standard pattern, though Supabase sends its own
-
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -701,8 +725,9 @@ const Auth = () => {
       // Note: Real production should usually trust Supabase built-in delivery if reliability is preferred over custom CSS
       await sendPasswordResetEmail(email, `${window.location.origin}/reset-password`);
 
-      toast.success("Reset instructions dispatched!");
-      setMode('signin');
+      // SHOW NOTIFICATION COMPONENT Instead of just toast
+      setShowMailSuccess({ type: "Password Reset", email });
+
     } catch (err: any) {
       toast.error(err.message || "Failed to send reset link");
     } finally {
@@ -754,6 +779,20 @@ const Auth = () => {
 
   // --- FORGOT PASSWORD FORM ---
   const ForgotPasswordForm = () => {
+    // If success state is active, show the notification
+    if (showMailSuccess) {
+      return (
+        <MailSentNotification
+          type={showMailSuccess.type}
+          email={showMailSuccess.email}
+          onClose={() => {
+            setShowMailSuccess(null);
+            setMode('signin');
+          }}
+        />
+      );
+    }
+
     const inputBase = "w-full bg-muted/30 border border-input rounded-xl py-4 px-4 text-lg font-medium focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none";
     const btnBase = "w-full bg-primary text-primary-foreground font-bold text-lg py-4 rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition-all active:scale-[0.98]";
 

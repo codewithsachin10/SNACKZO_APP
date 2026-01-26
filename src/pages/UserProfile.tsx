@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // import { useFeatures } from "@/contexts/FeatureContext"; // Temporarily disabled
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { User, Phone, MapPin, LogOut, ArrowLeft, Save, Building, DoorOpen, Trophy, Share2 } from "lucide-react";
+import { User, Phone, MapPin, LogOut, ArrowLeft, Save, Building, DoorOpen, Trophy, Share2, MessageSquare } from "lucide-react";
 
 // Premium Components
 import { AchievementMiniDisplay } from "@/components/AchievementDisplay";
@@ -170,6 +170,13 @@ const UserProfile = () => {
                         className="w-full neon-btn bg-primary text-primary-foreground py-4 flex items-center justify-center gap-2"
                     >
                         {isSaving ? "Saving..." : <><Save size={18} /> Save Changes</>}
+                    </button>
+
+                    <button
+                        onClick={() => navigate('/feedback')}
+                        className="w-full py-4 bg-secondary border border-border rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-muted transition-colors"
+                    >
+                        <MessageSquare size={18} /> Help & Feedback
                     </button>
 
                     <button

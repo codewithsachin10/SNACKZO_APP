@@ -56,7 +56,7 @@ const FeaturedProducts = () => {
   }
 
   return (
-    <section className="py-12 bg-muted border-b-3 border-foreground">
+    <section id="featured-products" className="py-12 bg-muted border-b-3 border-foreground">
       <div className="container mx-auto px-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>

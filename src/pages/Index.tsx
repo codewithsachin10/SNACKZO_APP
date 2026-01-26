@@ -9,13 +9,7 @@ import { FeatureShowcase } from "@/components/FeatureShowcase";
 import Footer from "@/components/Footer";
 import { ReorderSuggestions } from "@/components/ReorderSuggestions";
 import { useAuth } from "@/contexts/AuthContext";
-
-// Premium Components - temporarily disabled until database is set up
-// import { BottomNavigation } from "@/components/ui/BottomNavigation";
-// import { PullToRefresh } from "@/components/ui/PullToRefresh";
-// import { FlashDealsBanner, FlashDeals } from "@/components/FlashDeals";
-// import { MiniSpinWidget } from "@/components/SpinWheel";
-// import { useFeatures } from "@/contexts/FeatureContext";
+import AppTutorial from "@/components/AppTutorial";
 
 const Index = () => {
   const { user } = useAuth();
@@ -31,19 +25,20 @@ const Index = () => {
 
   return (
     // <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-background pb-20 md:pb-0">
-        <Navbar />
-        <MarqueeAnnouncement />
-        
-        {/* Flash Deals Banner - Temporarily disabled
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <AppTutorial />
+      <Navbar />
+      <MarqueeAnnouncement />
+
+      {/* Flash Deals Banner - Temporarily disabled
         {isFeatureEnabled('flash_deals') && (
           <FlashDealsBanner />
         )}
         */}
-        
-        <HeroSection />
 
-        {/* Spin Wheel Widget - Temporarily disabled
+      <HeroSection />
+
+      {/* Spin Wheel Widget - Temporarily disabled
         {user && isFeatureEnabled('spin_wheel') && (
           <section className="container mx-auto px-4 py-4">
             <MiniSpinWidget />
@@ -51,17 +46,17 @@ const Index = () => {
         )}
         */}
 
-        {/* Reorder Suggestions - Show for logged in users */}
-        {user && (
-          <section className="container mx-auto px-4 py-6">
-            <ReorderSuggestions key={refreshKey} limit={5} variant="horizontal" />
-          </section>
-        )}
+      {/* Reorder Suggestions - Show for logged in users */}
+      {user && (
+        <section className="container mx-auto px-4 py-6">
+          <ReorderSuggestions key={refreshKey} limit={5} variant="horizontal" />
+        </section>
+      )}
 
-        {/* New Features Showcase */}
-        <FeatureShowcase />
+      {/* New Features Showcase */}
+      <FeatureShowcase />
 
-        {/* Flash Deals Section - Temporarily disabled
+      {/* Flash Deals Section - Temporarily disabled
         {isFeatureEnabled('flash_deals') && (
           <section className="container mx-auto px-4 py-6">
             <FlashDeals />
@@ -69,21 +64,21 @@ const Index = () => {
         )}
         */}
 
-        {/* Flash Sales Timer (Legacy - can coexist or replace) */}
-        <section className="container mx-auto px-4 py-6">
-          <FlashSalesTimer />
-        </section>
+      {/* Flash Sales Timer (Legacy - can coexist or replace) */}
+      <section className="container mx-auto px-4 py-6">
+        <FlashSalesTimer />
+      </section>
 
-        <CategorySection />
-        <FeaturedProducts key={refreshKey} />
-        <Footer />
-        
-        {/* Mobile Bottom Navigation - Temporarily disabled
+      <CategorySection />
+      <FeaturedProducts key={refreshKey} />
+      <Footer />
+
+      {/* Mobile Bottom Navigation - Temporarily disabled
         <div className="md:hidden">
           <BottomNavigation />
         </div>
         */}
-      </div>
+    </div>
     // </PullToRefresh>
   );
 };

@@ -60,6 +60,7 @@ const Navbar = () => {
           {/* Brand & Location Selector */}
           <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
             <div
+              id="nav-brand"
               onClick={() => navigate("/")}
               className="flex items-center gap-2 cursor-pointer shrink-0"
             >
@@ -77,6 +78,7 @@ const Navbar = () => {
 
             {/* Quick Commerce Address Selector */}
             <div
+              id="nav-address"
               onClick={handleAddressClick}
               className="flex flex-col justify-center cursor-pointer hover:bg-muted/50 p-1.5 rounded-lg transition-colors max-w-[160px] md:max-w-xs"
             >
@@ -100,6 +102,7 @@ const Navbar = () => {
           <div className="flex items-center gap-3">
             <NotificationCenter />
             <button
+              id="nav-cart"
               onClick={() => setIsCartOpen(true)}
               className="neon-btn bg-secondary/20 hover:bg-secondary/30 text-secondary px-4 py-2 rounded-xl flex items-center gap-2 relative border border-secondary/30"
             >
@@ -291,6 +294,7 @@ const Navbar = () => {
             ) : (
               <div className="relative">
                 <button
+                  id="nav-login-btn"
                   onClick={() => setIsLoginDropdownOpen(!isLoginDropdownOpen)}
                   className="neon-btn bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2 rounded-xl flex items-center gap-2"
                 >
@@ -316,6 +320,7 @@ const Navbar = () => {
                           Sign In
                         </button>
                         <button
+                          id="nav-signup-btn"
                           onClick={() => handleLoginOption("user", "signup")}
                           className="w-full text-left px-3 py-2.5 hover:bg-muted/50 flex items-center gap-3 font-medium transition-colors rounded-lg"
                         >
