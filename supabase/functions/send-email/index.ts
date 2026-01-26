@@ -23,7 +23,7 @@ const handler = async (req: Request): Promise<Response> => {
         const { to, subject, html, message, from } = await req.json() as EmailRequest;
 
         // 1. Try to get key from Supabase Secrets (Best Practice)
-        let resendKey = Deno.env.get("RESEND_API_KEY");
+        let resendKey = Deno.env.get("RESEND_API_KEY") || Deno.env.get("VITE_RESEND_API_KEY");
 
         // 2. If not found, check if client passed it (Temporary fix for Vercel/Client migrations)
         if (!resendKey) {
