@@ -44,7 +44,7 @@ const handler = async (req: Request): Promise<Response> => {
                 Authorization: `Bearer ${resendKey}`,
             },
             body: JSON.stringify({
-                from: from || "Snackzo <onboarding@resend.dev>",
+                from: from || "Snackzo <admin@snackzo.tech>",
                 to: Array.isArray(to) ? to : [to],
                 subject,
                 html: emailHtml,
