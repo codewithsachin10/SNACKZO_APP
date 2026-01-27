@@ -11,6 +11,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import { notifyOrderConfirmed, sendOTPEmail, sendWelcomeEmail, sendPasswordResetEmail } from "@/utils/notificationService";
 import confetti from 'canvas-confetti';
 import { MailSentNotification } from "@/components/MailSentNotification";
+import { z } from "zod";
+
+// --- SECURITY SCHEMAS ---
+const authSchema = z.object({
+  fullName: z.string().min(2, "Name must be at least 2 characters").max(50),
+  phone: z.string().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian mobile number"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Must contain at least one special character"),
+});
 
 const Auth = () => {
   // --- MODE: signup, signin, or forgot ---
@@ -144,11 +157,33 @@ const Auth = () => {
 
   const handleStep3 = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValidEmail) { toast.error("Please enter a valid email address"); return; }
+
+    // Zod Validation
+    const emailResult = authSchema.shape.email.safeParse(email);
+    if (!emailResult.success) {
+      toast.error(emailResult.error.format()._errors[0]);
+      return;
+    }
 
     setIsLoading(true);
 
     try {
+      // 1. RATE LIMIT CHECK (Security Defense)
+      const { data: limitData, error: limitError } = await supabase.rpc('check_rate_limit', {
+        p_key: `otp:${email}`,
+        p_max_attempts: 3,
+        p_window_minutes: 15,
+        p_block_minutes: 30
+      });
+
+      if (limitError) {
+        console.error("Rate limit check failed", limitError);
+      } else if (limitData && !limitData.allowed) {
+        toast.error(`Too many attempts. Blocked until: ${new Date(limitData.blocked_until).toLocaleTimeString()}`);
+        setIsLoading(false);
+        return;
+      }
+
       // Check if email exists in auth.users table using Supabase Admin
       // Since we can't directly query auth.users from client, we try to sign in
       // and check the error, or use a different approach
@@ -687,6 +722,20 @@ const Auth = () => {
 
     setIsLoading(true);
     try {
+      // 1. RATE LIMIT CHECK (Security Defense)
+      const { data: limitData, error: limitError } = await supabase.rpc('check_rate_limit', {
+        p_key: `login:${email}`,
+        p_max_attempts: 5,
+        p_window_minutes: 10,
+        p_block_minutes: 20
+      });
+
+      if (limitData && !limitData.allowed) {
+        toast.error(`Too many failed attempts. Try again at ${new Date(limitData.blocked_until).toLocaleTimeString()}`);
+        setIsLoading(false);
+        return;
+      }
+
       const { error } = await signIn(email, password);
       if (error) {
         if (error.message.includes("Invalid login")) {

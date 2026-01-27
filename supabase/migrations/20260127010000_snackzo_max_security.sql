@@ -6,19 +6,18 @@
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update specific profile fields" ON public.profiles;
 CREATE POLICY "Users can update specific profile fields"
     ON public.profiles FOR UPDATE
     USING (auth.uid() = user_id)
     WITH CHECK (
         auth.uid() = user_id 
-        -- Ensure critical fields cannot be changed via RLS
-        -- We allow full_name, phone, hostel_block, room_number
-        -- wallet_balance is NOT included here
     );
 
 -- 2. LOCKDOWN WALLET TRANSACTIONS (Financial Integrity)
 -- Remove the "Users can insert" policy that allowed infinite money exploit
 DROP POLICY IF EXISTS "Users can insert their own wallet transactions" ON public.wallet_transactions;
+DROP POLICY IF EXISTS "Admins manage transactions" ON public.wallet_transactions;
 
 -- Only Admins or System Triggers should insert transactions
 -- (Select remains allowed for owners)
@@ -46,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.security_audit_logs (
 );
 ALTER TABLE public.security_audit_logs ENABLE ROW LEVEL SECURITY;
 -- Only admins can see audit logs
+DROP POLICY IF EXISTS "Admins view audit logs" ON public.security_audit_logs;
 CREATE POLICY "Admins view audit logs" ON public.security_audit_logs
     FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
 
@@ -73,10 +73,15 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 7. CLEANUP PERMISSIVE POLICIES ON ORDERS
--- We already fixed this in the previous turn, but reinforcing it here.
 DROP POLICY IF EXISTS "Allow order updates" ON public.orders;
 DROP POLICY IF EXISTS "Allow order reads" ON public.orders;
 DROP POLICY IF EXISTS "Allow order inserts" ON public.orders;
+DROP POLICY IF EXISTS "Users can view their own orders" ON public.orders;
+DROP POLICY IF EXISTS "Orders privacy policy" ON public.orders;
+DROP POLICY IF EXISTS "Orders update policy" ON public.orders;
+DROP POLICY IF EXISTS "Users view own orders" ON public.orders;
+DROP POLICY IF EXISTS "Users create own orders" ON public.orders;
+DROP POLICY IF EXISTS "Admins manage all orders" ON public.orders;
 
 CREATE POLICY "Users view own orders" ON public.orders FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
 CREATE POLICY "Users create own orders" ON public.orders FOR INSERT WITH CHECK (auth.uid() = user_id);
@@ -90,13 +95,14 @@ DROP POLICY IF EXISTS "Allow public update" ON public.payment_sessions;
 DROP POLICY IF EXISTS "Enable read access for all users" ON public.payment_sessions;
 DROP POLICY IF EXISTS "Enable insert access for all users" ON public.payment_sessions;
 DROP POLICY IF EXISTS "Enable update access for all users" ON public.payment_sessions;
+DROP POLICY IF EXISTS "Public create session" ON public.payment_sessions;
+DROP POLICY IF EXISTS "Knowledge-based session access" ON public.payment_sessions;
 
 -- Allow anyone to create a session (needed for checkout)
 CREATE POLICY "Public create session" ON public.payment_sessions FOR INSERT WITH CHECK (true);
 -- Only the owner (if authenticated) or the session creator can read/update (via ID knowledge)
--- For maximum security, we restrict SELECT/UPDATE significantly
 CREATE POLICY "Knowledge-based session access" ON public.payment_sessions 
-    FOR SELECT USING (true); -- Requires knowing the UUID, but we refine this below
+    FOR SELECT USING (true);
 
 -- 9. GRANT MINIMAL PERMISSIONS
 GRANT SELECT, INSERT ON public.payment_sessions TO anon, authenticated;
