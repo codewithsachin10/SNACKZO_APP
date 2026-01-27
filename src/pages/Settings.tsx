@@ -44,13 +44,19 @@ const Settings = () => {
         <div className="min-h-screen bg-background pb-20">
             <Navbar /> {/* Assuming Navbar fits here, or make it standalone header */}
 
-            {/* Mobile-style Header if Navbar is hidden on mobile, otherwise redundant */}
-            <div className="md:hidden sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border p-4 flex items-center gap-3">
-                <button onClick={() => navigate(-1)}><ArrowLeft /></button>
-                <h1 className="font-bold text-lg">Settings</h1>
-            </div>
+            <main className="container mx-auto px-4 pt-28 pb-24 max-w-2xl space-y-6">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                    <span>Back</span>
+                </button>
 
-            <main className="container mx-auto px-4 py-6 max-w-2xl space-y-6">
+                <div className="mb-6">
+                    <h1 className="text-3xl font-bold">Settings</h1>
+                    <p className="text-muted-foreground">Manage your app preferences</p>
+                </div>
 
                 {/* Account Section */}
                 <section>

@@ -301,7 +301,7 @@ const Subscriptions = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container mx-auto px-4 py-6 max-w-4xl">
+      <main className="container mx-auto px-4 pt-28 pb-24 max-w-4xl">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" onClick={() => navigate(-1)}>
             <ArrowLeft size={20} />
@@ -603,8 +603,8 @@ const Subscriptions = () => {
                             sub.status === 'active'
                               ? 'bg-lime text-background'
                               : sub.status === 'paused'
-                              ? 'bg-yellow-500 text-background'
-                              : 'bg-muted'
+                                ? 'bg-yellow-500 text-background'
+                                : 'bg-muted'
                           }
                         >
                           {sub.status}

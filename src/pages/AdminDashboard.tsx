@@ -27,6 +27,7 @@ import DatabaseManager from "@/components/admin/DatabaseManager";
 import SnackzoPayManagement from "@/components/admin/SnackzoPayManagement";
 import NotificationCenter from "@/components/admin/NotificationCenter";
 import FeedbackManager from "@/components/admin/FeedbackManager";
+import BannerManager from "@/components/admin/BannerManager";
 
 import { AdminSidebar, AdminTab } from "@/components/admin/AdminSidebar";
 
@@ -603,6 +604,7 @@ const AdminDashboard = () => {
           {activeTab === "categories" && <CategoryManagement />}
           {activeTab === "advanced-analytics" && <AdvancedAnalytics />}
           {activeTab === "promotions" && <PromotionsDiscounts />}
+          {activeTab === "banners" && <BannerManager />}
           {activeTab === "customer-insights" && <CustomerInsights />}
           {activeTab === "announcements" && <AnnouncementsManager />}
           {activeTab === "features" && <AdminFeatureControls />}

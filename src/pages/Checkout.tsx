@@ -32,7 +32,7 @@ interface Discount {
 }
 
 const Checkout = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, isLoading } = useAuth();
   const { items, subtotal, clearCart } = useCart();
   // Feature flags - default to enabled since FeatureProvider is disabled
   const isFeatureEnabled = (feature: string) => true;
@@ -46,6 +46,7 @@ const Checkout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showUpiQr, setShowUpiQr] = useState(false);
   const [oneClickCheckout, setOneClickCheckout] = useState(false);
+  const [gateway, setGateway] = useState<'snackzo' | 'razorpay'>('snackzo');
 
   // Handle SnackzoPay Callback
   useEffect(() => {
@@ -122,6 +123,14 @@ const Checkout = () => {
   const deliveryAddress = profile?.hostel_block
     ? `${profile.hostel_block}${profile.room_number ? `, ${profile.room_number}` : ''}`
     : "Please complete your profile";
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   if (!user) {
     navigate("/auth");
@@ -208,7 +217,7 @@ const Checkout = () => {
     toast.info("Discount removed");
   };
 
-  const [gateway, setGateway] = useState<'snackzo' | 'razorpay'>('snackzo');
+
 
   // ... (existing functions)
 

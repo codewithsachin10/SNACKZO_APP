@@ -101,7 +101,7 @@ const ProductDetail = () => {
         .select('*')
         .eq('product_id', productId)
         .order('display_order');
-      
+
       if (data && data.length > 0) {
         setProductImages(data);
       }
@@ -221,7 +221,7 @@ const ProductDetail = () => {
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Navbar />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 pt-24 pb-8">
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
@@ -235,11 +235,11 @@ const ProductDetail = () => {
           {/* Product Image Gallery */}
           {isFeatureEnabled('product_gallery') && productImages.length > 0 ? (
             <div className="relative">
-              <ProductImageGallery 
+              <ProductImageGallery
                 images={productImages.map(img => img.image_url)}
                 productName={product.name}
               />
-              
+
               {/* Favorite Button Overlay */}
               <button
                 onClick={() => toggleFavorite(product.id)}
@@ -362,8 +362,8 @@ const ProductDetail = () => {
                   <PriceAlertButton productId={product.id} currentPrice={product.price} />
                 )}
                 {isFeatureEnabled('social_sharing') && (
-                  <ShareProductButton 
-                    productId={product.id} 
+                  <ShareProductButton
+                    productUrl={`${window.location.origin}/products/${product.id}`}
                     productName={product.name}
                     productImage={product.image_url || undefined}
                   />
@@ -486,11 +486,8 @@ const ProductDetail = () => {
       </main>
 
       <Footer />
-      
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden">
-        <BottomNavigation />
-      </div>
+
+
     </div>
   );
 };

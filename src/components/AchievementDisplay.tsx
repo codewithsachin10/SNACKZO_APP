@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Trophy, Star, Shield, Flame, Target, Crown, Zap, Heart, 
+import {
+  Trophy, Star, Shield, Flame, Target, Crown, Zap, Heart,
   Award, Medal, Gift, Sparkles, Lock, ChevronRight, Info
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -186,7 +186,7 @@ export function AchievementDisplay({ userId, compact = false }: AchievementDispl
       .eq("status", "delivered");
 
     // Fetch review count
-    const { count: reviewCount } = await (supabase.from as any)("product_reviews")
+    const { count: reviewCount } = await (supabase.from as any)("reviews")
       .select("*", { count: "exact", head: true })
       .eq("user_id", targetUserId);
 
@@ -194,7 +194,7 @@ export function AchievementDisplay({ userId, compact = false }: AchievementDispl
     const { count: referralCount } = await (supabase.from as any)("referrals")
       .select("*", { count: "exact", head: true })
       .eq("referrer_id", targetUserId)
-      .eq("is_completed", true);
+      .in("status", ["completed", "rewarded"]);
 
     // Fetch total spending
     const { data: spendingData } = await supabase
@@ -313,9 +313,9 @@ export function AchievementDisplay({ userId, compact = false }: AchievementDispl
         )}
 
         {/* Badge detail modal */}
-        <BadgeDetailModal 
-          badge={selectedBadge} 
-          onClose={() => setSelectedBadge(null)} 
+        <BadgeDetailModal
+          badge={selectedBadge}
+          onClose={() => setSelectedBadge(null)}
         />
       </div>
     );
@@ -335,7 +335,7 @@ export function AchievementDisplay({ userId, compact = false }: AchievementDispl
             {earnedBadges.length} of {badges.length} badges earned
           </p>
         </div>
-        
+
         {/* Progress ring */}
         <div className="relative w-16 h-16">
           <svg className="w-full h-full transform -rotate-90">
@@ -422,7 +422,7 @@ export function AchievementDisplay({ userId, compact = false }: AchievementDispl
                   onClick={() => setSelectedBadge(badge)}
                   className="w-full flex items-center gap-3 p-3 bg-muted/50 rounded-xl"
                 >
-                  <div 
+                  <div
                     className="w-12 h-12 rounded-full flex items-center justify-center opacity-50"
                     style={{ backgroundColor: badge.color }}
                   >
@@ -435,11 +435,11 @@ export function AchievementDisplay({ userId, compact = false }: AchievementDispl
                     </p>
                     <p className="text-sm text-muted-foreground">{badge.description}</p>
                     <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full rounded-full transition-all"
-                        style={{ 
+                        style={{
                           width: `${badge.progress}%`,
-                          backgroundColor: badge.color 
+                          backgroundColor: badge.color
                         }}
                       />
                     </div>
@@ -492,9 +492,9 @@ export function AchievementDisplay({ userId, compact = false }: AchievementDispl
       </div>
 
       {/* Badge detail modal */}
-      <BadgeDetailModal 
-        badge={selectedBadge} 
-        onClose={() => setSelectedBadge(null)} 
+      <BadgeDetailModal
+        badge={selectedBadge}
+        onClose={() => setSelectedBadge(null)}
       />
     </div>
   );

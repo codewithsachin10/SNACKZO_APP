@@ -208,15 +208,17 @@ const PrivacySecurity = () => {
         <div className="min-h-screen bg-background pb-20">
             <Navbar />
 
-            <header className="md:hidden sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border p-4 flex items-center gap-3">
-                <button onClick={() => navigate(-1)}><ArrowLeft /></button>
-                <h1 className="font-bold text-lg">Privacy & Security</h1>
-            </header>
-
-            <main className="container mx-auto px-4 py-8 max-w-2xl space-y-8">
+            <main className="container mx-auto px-4 pt-28 pb-24 max-w-2xl space-y-8">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                    <span>Back</span>
+                </button>
 
                 {/* Header */}
-                <div className="hidden md:flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
                         <Shield className="text-white" size={24} />
                     </div>

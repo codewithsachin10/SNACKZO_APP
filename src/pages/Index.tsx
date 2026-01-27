@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import { ReorderSuggestions } from "@/components/ReorderSuggestions";
 import { useAuth } from "@/contexts/AuthContext";
 import AppTutorial from "@/components/AppTutorial";
+import HomeBanners from "@/components/HomeBanners";
 
 const Index = () => {
   const { user } = useAuth();
@@ -29,6 +30,10 @@ const Index = () => {
       <AppTutorial />
       <Navbar />
       <MarqueeAnnouncement />
+
+      <section className="container mx-auto px-4">
+        <HomeBanners />
+      </section>
 
       {/* Flash Deals Banner - Temporarily disabled
         {isFeatureEnabled('flash_deals') && (
@@ -73,11 +78,7 @@ const Index = () => {
       <FeaturedProducts key={refreshKey} />
       <Footer />
 
-      {/* Mobile Bottom Navigation - Temporarily disabled
-        <div className="md:hidden">
-          <BottomNavigation />
-        </div>
-        */}
+
     </div>
     // </PullToRefresh>
   );

@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
-import { Heart } from "lucide-react";
+import { Heart, ArrowLeft } from "lucide-react";
 
 interface Product {
   id: string;
@@ -33,7 +33,7 @@ const Favorites = () => {
       navigate("/auth");
       return;
     }
-    
+
     if (user && favorites.size > 0) {
       fetchFavoriteProducts();
     } else {
@@ -45,7 +45,7 @@ const Favorites = () => {
   const fetchFavoriteProducts = async () => {
     setIsLoading(true);
     const favoriteIds = Array.from(favorites);
-    
+
     const { data, error } = await supabase
       .from("products")
       .select("*, categories(name)")
@@ -69,9 +69,17 @@ const Favorites = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 pt-28 pb-24">
         {/* Header */}
         <div className="mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors"
+          >
+            <ArrowLeft size={20} />
+            <span>Back</span>
+          </button>
+
           <h1 className="text-4xl font-bold uppercase mb-2 flex items-center gap-3">
             <Heart className="fill-destructive text-destructive" size={36} />
             My Favorites

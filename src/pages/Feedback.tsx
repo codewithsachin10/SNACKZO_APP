@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, MessageSquare, ShoppingBag, Send, ArrowLeft, Bug, Utensils, Truck, Lightbulb, ThumbsUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +24,10 @@ export default function Feedback() {
     const [category, setCategory] = useState<string | null>(null);
     const [message, setMessage] = useState("");
     const [recentOrders, setRecentOrders] = useState<any[]>([]);
+    const [searchParams] = useSearchParams();
+    const orderIdFromUrl = searchParams.get("orderId");
+
+    // Restore missing state
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -32,14 +36,21 @@ export default function Feedback() {
         if (user) fetchRecentOrders();
     }, [user]);
 
+    // Pre-select order from URL
+    useEffect(() => {
+        if (orderIdFromUrl) {
+            setSelectedOrderId(orderIdFromUrl);
+        }
+    }, [orderIdFromUrl]);
+
     const fetchRecentOrders = async () => {
-        // Fetch last 3 delivered orders
+        // Fetch last 5 delivered orders (increased from 3 to catch the linked one more likely)
         const { data } = await supabase
             .from('orders')
             .select('id, created_at, total_amount, status')
             .eq('user_id', user?.id)
             .order('created_at', { ascending: false })
-            .limit(3);
+            .limit(5);
 
         if (data) setRecentOrders(data);
     };

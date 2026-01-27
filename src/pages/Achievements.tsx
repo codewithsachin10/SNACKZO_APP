@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Trophy, Star, Flame, Gift, Target, Zap, Medal, Crown, 
+  Trophy, Star, Flame, Gift, Target, Zap, Medal, Crown,
   Calendar, CheckCircle, Lock, ArrowLeft, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -158,7 +158,7 @@ const Achievements = () => {
       if (result && result.points_earned > 0) {
         // Trigger confetti
         confetti();
-        
+
         toast.success(`🎉 +${result.points_earned} points earned!`, {
           description: `Day ${result.new_streak} streak! ${result.bonus_multiplier > 1 ? `${result.bonus_multiplier}x bonus!` : ''}`,
         });
@@ -201,7 +201,7 @@ const Achievements = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container mx-auto px-4 py-6 max-w-2xl">
+      <main className="container mx-auto px-4 pt-28 pb-24 max-w-2xl">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" onClick={() => navigate(-1)}>
             <ArrowLeft size={20} />
@@ -286,13 +286,12 @@ const Achievements = () => {
                 return (
                   <div
                     key={i}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
-                      hasCheckin
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all ${hasCheckin
                         ? 'bg-lime text-background'
                         : isCurrentDay
-                        ? 'border-2 border-lime'
-                        : 'bg-muted'
-                    }`}
+                          ? 'border-2 border-lime'
+                          : 'bg-muted'
+                      }`}
                   >
                     {format(date, 'd')}
                   </div>
@@ -377,9 +376,8 @@ const Achievements = () => {
                           >
                             <CardContent className="p-3 flex items-center gap-3">
                               <div
-                                className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${
-                                  earned ? 'bg-lime/20' : 'bg-muted'
-                                }`}
+                                className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${earned ? 'bg-lime/20' : 'bg-muted'
+                                  }`}
                               >
                                 {badge.is_secret && !earned ? '❓' : badge.icon}
                               </div>

@@ -16,6 +16,7 @@ import {
   CreditCard,
   Search,
   ArrowRight,
+  ArrowLeft,
   TrendingUp,
   History,
   LayoutGrid,
@@ -161,6 +162,15 @@ const Orders = () => {
         <main className="container mx-auto px-4 pt-28 pb-8 max-w-2xl">
           {/* Header Section */}
           <div className="flex flex-col gap-6 mb-10">
+            {/* Back Button */}
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground w-fit transition-colors"
+            >
+              <ArrowLeft size={18} />
+              <span>Back</span>
+            </button>
+
             <div className="flex items-center justify-between">
               <div>
                 <motion.h1
@@ -366,7 +376,6 @@ const Orders = () => {
         </main>
 
         <Footer />
-        <BottomNavigation />
       </div>
     </PullToRefresh>
   );

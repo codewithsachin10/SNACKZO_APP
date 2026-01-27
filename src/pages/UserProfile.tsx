@@ -188,10 +188,7 @@ const UserProfile = () => {
                 </div>
             </main>
 
-            {/* Mobile Bottom Navigation */}
-            <div className="md:hidden">
-                <BottomNavigation />
-            </div>
+
         </div>
     );
 };

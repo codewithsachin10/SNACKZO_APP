@@ -11,8 +11,8 @@ export default function NotificationSettings() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      
-      <main className="flex-1 container mx-auto px-4 py-8">
+
+      <main className="flex-1 container mx-auto px-4 pt-28 pb-24">
         <div className="max-w-2xl mx-auto">
           <Button
             variant="ghost"
@@ -22,7 +22,7 @@ export default function NotificationSettings() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          
+
           <div className="mb-6">
             <h1 className="text-2xl font-bold">Notification Settings</h1>
             <p className="text-muted-foreground">

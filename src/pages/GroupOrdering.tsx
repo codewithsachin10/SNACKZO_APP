@@ -91,11 +91,31 @@ const GroupOrdering = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await (supabase
+      // Step 1: Get IDs of groups where user is a member
+      const { data: memberData } = await (supabase
+        .from('group_order_members' as any)
+        .select('group_order_id')
+        .eq('user_id', user.id) as any);
+
+      const memberGroupIds = memberData ? memberData.map((m: any) => m.group_order_id) : [];
+
+      // Step 2: Fetch groups created by user OR where user is a member
+      // We construct a filter string for the OR condition using the IDs
+      let query = supabase
         .from('group_orders' as any)
         .select('*')
-        .or(`created_by.eq.${user.id},id.in.(select group_order_id from group_order_members where user_id = '${user.id}')`)
-        .order('created_at', { ascending: false }) as any);
+        .order('created_at', { ascending: false });
+
+      if (memberGroupIds.length > 0) {
+        // user created it OR id is in memberGroupIds
+        // format: created_by.eq.USER_ID,id.in.(ID1,ID2,...)
+        query = query.or(`created_by.eq.${user.id},id.in.(${memberGroupIds.join(',')})`);
+      } else {
+        // Just created by user
+        query = query.eq('created_by', user.id);
+      }
+
+      const { data, error } = await (query as any);
 
       if (!error && data) {
         setGroups(data as GroupOrder[]);
@@ -399,7 +419,14 @@ const GroupOrdering = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="container mx-auto px-4 py-6 max-w-2xl">
+        <main className="container mx-auto px-4 pt-28 pb-24 max-w-2xl">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors"
+          >
+            <ArrowLeft size={18} />
+            <span>Back</span>
+          </button>
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold">Group Orders</h1>
             <div className="flex gap-2">
@@ -483,7 +510,7 @@ const GroupOrdering = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="container mx-auto px-4 py-6 max-w-md">
+        <main className="container mx-auto px-4 pt-28 pb-24 max-w-md">
           <Button
             variant="ghost"
             className="mb-4"
@@ -561,7 +588,7 @@ const GroupOrdering = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="container mx-auto px-4 py-6 max-w-md">
+        <main className="container mx-auto px-4 pt-28 pb-24 max-w-md">
           <Button
             variant="ghost"
             className="mb-4"
@@ -610,7 +637,7 @@ const GroupOrdering = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="container mx-auto px-4 py-6 max-w-2xl">
+        <main className="container mx-auto px-4 pt-28 pb-24 max-w-2xl">
           <Button
             variant="ghost"
             className="mb-4"

@@ -51,6 +51,7 @@ import { SocialProofToast } from "./components/SocialProofToast";
 import { LiveChat } from "./components/LiveChat";
 import SnackzoPayGateway from "./pages/SnackzoPayGateway";
 import SnackzoPayConfirm from "./pages/SnackzoPayConfirm";
+import { BottomNavigation } from "@/components/ui/BottomNavigation";
 
 const queryClient = new QueryClient();
 
@@ -136,6 +137,7 @@ const App = () => {
                   </Routes>
                   {/* Global AI Chatbot */}
                   <SnackzoAI />
+                  <BottomNavigation />
                   {/* Premium Live Support */}
                   <LiveChat />
                 </BrowserRouter>

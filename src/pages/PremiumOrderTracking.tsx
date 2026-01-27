@@ -132,7 +132,7 @@ interface DeliveryProof {
 
 const PremiumOrderTracking = () => {
   const { orderId } = useParams();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { addToCart } = useCart();
   const navigate = useNavigate();
 
@@ -157,6 +157,8 @@ const PremiumOrderTracking = () => {
   // ============================================
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (!user) {
       navigate("/auth");
       return;
@@ -573,6 +575,26 @@ const PremiumOrderTracking = () => {
                   <p className="text-sm font-medium leading-relaxed">{order.notes}</p>
                 </div>
               )}
+
+
+              {/* RATE ORDER BUTTON */}
+              {order.status === 'delivered' && (
+                <div className="glass-card p-6 rounded-[2.5rem] border border-white/5 flex flex-col items-center text-center space-y-4 bg-gradient-to-br from-primary/10 to-purple-500/10">
+                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-yellow-400 shadow-xl shadow-purple-500/20 mb-2">
+                    <Star size={32} className="fill-yellow-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black uppercase tracking-tight mb-2">How was it?</h3>
+                    <p className="text-sm text-muted-foreground font-medium max-w-xs mx-auto">Help us improve by rating your food and delivery experience.</p>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/feedback?orderId=${order.id}`)}
+                    className="w-full py-4 bg-white text-black rounded-2xl font-bold uppercase tracking-wide hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg"
+                  >
+                    Rate Order
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -602,7 +624,7 @@ const PremiumOrderTracking = () => {
       </div>
 
       <OrderCelebration show={showDelivered} type="delivered" onComplete={() => setShowDelivered(false)} />
-    </div>
+    </div >
   );
 };
 

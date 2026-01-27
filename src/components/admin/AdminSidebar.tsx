@@ -30,7 +30,8 @@ export type AdminTab =
     | "system-health"
     | "support"
     | "settings"
-    | "feedback";
+    | "feedback"
+    | "banners";
 
 interface AdminSidebarProps {
     activeTab: AdminTab;
@@ -47,6 +48,7 @@ const menuItems: { id: AdminTab; label: string; icon: any; badge?: string }[] = 
     { id: "inventory", label: "Inventory", icon: ShoppingBag },
     { id: "products", label: "Products", icon: Package },
     { id: "categories", label: "Categories", icon: List },
+    { id: "banners", label: "Banners", icon: Zap, badge: "NEW" },
     { id: "runners", label: "Runners", icon: Truck },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "advanced-analytics", label: "Advanced", icon: LineChart },

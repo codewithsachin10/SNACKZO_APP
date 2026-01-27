@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
-import { 
+import {
   Sparkles, Gift, Trophy, Star, Loader2, Coins, PartyPopper,
   ChevronRight, Clock, Info, X
 } from "lucide-react";
@@ -32,7 +32,7 @@ interface SpinWheelProps {
 export function SpinWheel({ onRewardEarned }: SpinWheelProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [segments, setSegments] = useState<WheelSegment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -64,7 +64,7 @@ export function SpinWheel({ onRewardEarned }: SpinWheelProps) {
         const nextSpinTime = new Date(lastSpinTime).getTime() + 24 * 60 * 60 * 1000;
         const remaining = Math.max(0, nextSpinTime - Date.now());
         setTimeUntilNextSpin(remaining);
-        
+
         if (remaining === 0) {
           setCanSpin(true);
         }
@@ -80,7 +80,7 @@ export function SpinWheel({ onRewardEarned }: SpinWheelProps) {
         .select("is_enabled")
         .eq("feature_name", "spin_wheel")
         .single();
-      
+
       // Default to enabled if error or no data
       setFeatureEnabled(error ? true : (data?.is_enabled !== false));
     } catch {
@@ -116,15 +116,15 @@ export function SpinWheel({ onRewardEarned }: SpinWheelProps) {
     if (!user) return;
 
     const { data } = await (supabase.from as any)("spin_history")
-      .select("spun_at")
+      .select("created_at")
       .eq("user_id", user.id)
-      .order("spun_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1);
 
     if (data && data.length > 0) {
-      const lastSpin = new Date(data[0].spun_at);
+      const lastSpin = new Date(data[0].created_at);
       setLastSpinTime(lastSpin);
-      
+
       const hoursSinceLastSpin = (Date.now() - lastSpin.getTime()) / (1000 * 60 * 60);
       setCanSpin(hoursSinceLastSpin >= 24);
     } else {
@@ -161,10 +161,10 @@ export function SpinWheel({ onRewardEarned }: SpinWheelProps) {
     // Find winning segment
     const winningSegment = segments.find(s => s.type === data.reward_type && s.value === data.reward_value)
       || segments[Math.floor(Math.random() * segments.length)];
-    
+
     const segmentIndex = segments.indexOf(winningSegment);
     const segmentAngle = 360 / segments.length;
-    
+
     // Calculate final rotation (multiple full rotations + landing on segment)
     const extraRotations = 5 + Math.floor(Math.random() * 3); // 5-7 full rotations
     const targetAngle = segmentIndex * segmentAngle + segmentAngle / 2;
@@ -272,16 +272,16 @@ export function SpinWheel({ onRewardEarned }: SpinWheelProps) {
               const startAngle = index * segmentAngle;
               const endAngle = (index + 1) * segmentAngle;
               const midAngle = startAngle + segmentAngle / 2;
-              
+
               // Calculate path for segment
               const startRad = (startAngle - 90) * (Math.PI / 180);
               const endRad = (endAngle - 90) * (Math.PI / 180);
-              
+
               const x1 = 100 + 100 * Math.cos(startRad);
               const y1 = 100 + 100 * Math.sin(startRad);
               const x2 = 100 + 100 * Math.cos(endRad);
               const y2 = 100 + 100 * Math.sin(endRad);
-              
+
               const largeArc = segmentAngle > 180 ? 1 : 0;
 
               // Label position
@@ -344,7 +344,7 @@ export function SpinWheel({ onRewardEarned }: SpinWheelProps) {
         </motion.button>
 
         {/* Pointer */}
-        <div 
+        <div
           className="absolute top-2 left-1/2 -translate-x-1/2 z-20"
           style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }}
         >
@@ -481,15 +481,15 @@ export function MiniSpinWidget({ onOpenFullWheel }: MiniSpinWidgetProps) {
 
     try {
       const { data } = await (supabase.from as any)("spin_history")
-        .select("spun_at")
+        .select("created_at")
         .eq("user_id", user.id)
-        .order("spun_at", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1);
 
       if (!data || data.length === 0) {
         setCanSpin(true);
       } else {
-        const lastSpin = new Date(data[0].spun_at);
+        const lastSpin = new Date(data[0].created_at);
         const hoursSinceLastSpin = (Date.now() - lastSpin.getTime()) / (1000 * 60 * 60);
         setCanSpin(hoursSinceLastSpin >= 24);
       }
@@ -507,7 +507,7 @@ export function MiniSpinWidget({ onOpenFullWheel }: MiniSpinWidgetProps) {
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       onClick={onOpenFullWheel}
-      className="fixed bottom-24 right-4 z-40"
+      className="fixed bottom-24 left-4 z-40"
     >
       <div className="relative">
         {/* Pulsing ring */}
@@ -516,7 +516,7 @@ export function MiniSpinWidget({ onOpenFullWheel }: MiniSpinWidgetProps) {
           transition={{ duration: 2, repeat: Infinity }}
           className="absolute inset-0 bg-yellow-500/30 rounded-full"
         />
-        
+
         {/* Main button */}
         <div className="relative w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
           <motion.div
