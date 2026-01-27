@@ -56,6 +56,8 @@ import { BottomNavigation } from "@/components/ui/BottomNavigation";
 
 const queryClient = new QueryClient();
 
+import { ProtectedRoute } from "./components/ProtectedRoute";
+
 const AppRoutes = () => {
   const location = useLocation();
   const { user } = useAuth();
@@ -70,41 +72,45 @@ const AppRoutes = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/complete-profile" element={<CompleteProfile />} />
-        <Route path="/profile" element={<UserProfile />} />
+
+        {/* Authenticated Routes */}
+        <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+        <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+        <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+        <Route path="/orders/:orderId" element={<ProtectedRoute><PremiumOrderTracking /></ProtectedRoute>} />
+        <Route path="/receipt/:orderId" element={<ProtectedRoute><Receipt /></ProtectedRoute>} />
+        <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
+        <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/privacy-security" element={<ProtectedRoute><PrivacySecurity /></ProtectedRoute>} />
+        <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
+        <Route path="/payment-methods" element={<ProtectedRoute><PaymentMethods /></ProtectedRoute>} />
+        <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
+        <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
+
+        {/* New Feature Routes */}
+        <Route path="/group-order" element={<ProtectedRoute><GroupOrdering /></ProtectedRoute>} />
+        <Route path="/group-order/:groupId" element={<ProtectedRoute><GroupOrdering /></ProtectedRoute>} />
+        <Route path="/subscriptions" element={<ProtectedRoute><Subscriptions /></ProtectedRoute>} />
+        <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
+        <Route path="/group-checkout/:groupId" element={<ProtectedRoute><GroupCheckout /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+
+        {/* Admin/Staff Routes */}
+        <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/form-builder" element={<ProtectedRoute requireAdmin={true}><FormBuilderPage /></ProtectedRoute>} />
+        <Route path="/admin/forms/:formId/responses" element={<ProtectedRoute requireAdmin={true}><FormResponsesPage /></ProtectedRoute>} />
+        <Route path="/runner" element={<ProtectedRoute requireAdmin={true}><RunnerDashboard /></ProtectedRoute>} />
+
+        {/* Semi-Public Routes */}
         <Route path="/products" element={<Products />} />
         <Route path="/products/:productId" element={<ProductDetail />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/orders" element={<Orders />} />
-        <Route path="/orders/:orderId" element={<PremiumOrderTracking />} />
-        <Route path="/receipt/:orderId" element={<Receipt />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/form-builder" element={<FormBuilderPage />} />
         <Route path="/forms/:formId" element={<FormViewerPage />} />
-        <Route path="/admin/forms/:formId/responses" element={<FormResponsesPage />} />
-        <Route path="/runner" element={<RunnerDashboard />} />
-        <Route path="/wallet" element={<Wallet />} />
-        <Route path="/favorites" element={<Favorites />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/privacy-security" element={<PrivacySecurity />} />
-        <Route path="/settings/notifications" element={<NotificationSettings />} />
-        <Route path="/payment-methods" element={<PaymentMethods />} />
-        <Route path="/support" element={<Support />} />
-        <Route path="/feedback" element={<Feedback />} />
-        {/* New Feature Routes */}
-        <Route path="/group-order" element={<GroupOrdering />} />
-        <Route path="/group-order/:groupId" element={<GroupOrdering />} />
-        <Route path="/subscriptions" element={<Subscriptions />} />
-        <Route path="/achievements" element={<Achievements />} />
-        <Route path="/group-checkout/:groupId" element={<GroupCheckout />} />
-        <Route path="/messages" element={<Messages />} />
-        {/* Premium Feature Routes - Temporarily disabled
-          <Route path="/spin" element={<SpinWheelPage />} />
-          <Route path="/flash-deals" element={<FlashDealsPage />} />
-          */}
+
         {/* SnackzoPay Gateway */}
-        <Route path="/pay" element={<SnackzoPayGateway />} />
-        <Route path="/pay/confirm" element={<SnackzoPayConfirm />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="/pay" element={<ProtectedRoute><SnackzoPayGateway /></ProtectedRoute>} />
+        <Route path="/pay/confirm" element={<ProtectedRoute><SnackzoPayConfirm /></ProtectedRoute>} />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
 

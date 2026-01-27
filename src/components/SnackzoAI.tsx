@@ -644,10 +644,21 @@ const SnackzoAI = () => {
     // ======= RENDER CONTENT =======
     const renderContent = (content: string) => {
         return content.split('\n').map((line, i) => {
-            let html = line
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em class="text-white/70">$1</em>');
-            return <span key={i} dangerouslySetInnerHTML={{ __html: html }} className="block" />;
+            // Safe parsing of bold and italic without dangerouslySetInnerHTML
+            const parts = line.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+            return (
+                <span key={i} className="block min-h-[1.2em]">
+                    {parts.map((part, j) => {
+                        if (part.startsWith('**') && part.endsWith('**')) {
+                            return <strong key={j} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+                        }
+                        if (part.startsWith('*') && part.endsWith('*')) {
+                            return <em key={j} className="text-white/70 italic">{part.slice(1, -1)}</em>;
+                        }
+                        return <span key={j}>{part}</span>;
+                    })}
+                </span>
+            );
         });
     };
 
