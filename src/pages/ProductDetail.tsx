@@ -158,6 +158,10 @@ const ProductDetail = () => {
     : 0;
 
   const handleAdd = () => {
+    if (!user) {
+      navigate("/auth?mode=signin");
+      return;
+    }
     if (!isOutOfStock && quantity < product.stock) {
       addToCart({
         id: product.id,
@@ -356,28 +360,32 @@ const ProductDetail = () => {
             )}
 
             {/* Price Alert & Share Actions */}
-            {user && (
-              <div className="flex items-center gap-3 flex-wrap">
-                {isFeatureEnabled('price_alerts') && (
-                  <PriceAlertButton productId={product.id} currentPrice={product.price} />
-                )}
-                {isFeatureEnabled('social_sharing') && (
-                  <ShareProductButton
-                    productUrl={`${window.location.origin}/products/${product.id}`}
-                    productName={product.name}
-                    productImage={product.image_url || undefined}
-                  />
-                )}
-                {isFeatureEnabled('price_alerts') && (
-                  <button
-                    onClick={() => setShowPriceHistory(!showPriceHistory)}
-                    className="px-4 py-2 text-sm font-medium bg-muted hover:bg-muted/80 rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    📊 {showPriceHistory ? 'Hide' : 'View'} Price History
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="flex items-center gap-3 flex-wrap">
+              {isFeatureEnabled('price_alerts') && (
+                <PriceAlertButton productId={product.id} currentPrice={product.price} />
+              )}
+              {isFeatureEnabled('social_sharing') && (
+                <ShareProductButton
+                  productUrl={`${window.location.origin}/products/${product.id}`}
+                  productName={product.name}
+                  productImage={product.image_url || undefined}
+                />
+              )}
+              {isFeatureEnabled('price_alerts') && (
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      navigate("/auth?mode=signin");
+                      return;
+                    }
+                    setShowPriceHistory(!showPriceHistory);
+                  }}
+                  className="px-4 py-2 text-sm font-medium bg-muted hover:bg-muted/80 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  📊 {showPriceHistory ? 'Hide' : 'View'} Price History
+                </button>
+              )}
+            </div>
 
             {/* Price History Chart */}
             {showPriceHistory && isFeatureEnabled('price_alerts') && (
@@ -430,7 +438,7 @@ const ProductDetail = () => {
                         }`}
                     >
                       <ShoppingCart size={24} />
-                      {isOutOfStock ? "Sold Out" : "Add to Cart"}
+                      {isOutOfStock ? "Sold Out" : (!user ? "Sign in to Buy" : "Add to Cart")}
                     </button>
                   ) : (
                     <div className="flex items-center gap-4 flex-1">

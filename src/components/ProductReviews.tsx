@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Star, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +22,7 @@ interface ProductReviewsProps {
 
 const ProductReviews = ({ productId, productName }: ProductReviewsProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -131,9 +133,15 @@ const ProductReviews = ({ productId, productName }: ProductReviewsProps) => {
             </div>
           )}
         </div>
-        {user && !userHasReviewed && !showForm && (
+        {!userHasReviewed && !showForm && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              if (!user) {
+                navigate("/auth?mode=signin");
+                return;
+              }
+              setShowForm(true);
+            }}
             className="neu-btn bg-primary text-primary-foreground px-4 py-2 text-sm"
           >
             Write Review
@@ -145,7 +153,7 @@ const ProductReviews = ({ productId, productName }: ProductReviewsProps) => {
       {showForm && (
         <div className="glass-card p-4 space-y-4">
           <h4 className="font-bold">Your Review for {productName}</h4>
-          
+
           <div>
             <label className="block text-sm font-medium mb-2">Rating</label>
             <StarRating value={rating} onChange={setRating} />

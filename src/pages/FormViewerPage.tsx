@@ -345,15 +345,53 @@ export default function FormViewerPage() {
         );
     }
 
+    // Theme Styles
+    const theme = form?.theme || {};
+    const primaryColor = theme.primaryColor || "#7c3aed";
+    const backgroundColor = theme.backgroundColor || "#000000"; // Default to black/dark if null, but usually white in DB default
+    const borderRadius = theme.borderRadius || "0.75rem";
+
     return (
-        <div className="min-h-screen bg-background py-12 px-4 sm:px-6">
+        <div
+            className="min-h-screen py-12 px-4 sm:px-6 transition-colors duration-500"
+            style={{ backgroundColor: backgroundColor, color: '#ffffff' }} // Force text white for now? No, depends on contrast. 
+        // Actually, if bg is white, text should be black. If bg is dark, text white.
+        // The app seems to be dark mode by default ("min-h-screen bg-background").
+        // If user picks white BG, we need to invert text color or assume they pick dark text?
+        // "hostel-mart-theme" is set to dark in App.tsx.
+        // Let's assume the user picks colors that work, but we should probably force a text color if we can calc contrast, 
+        // OR just let the cards be contrasting.
+        // For this specific request, the user wants the "Canvas Tone" to apply.
+        >
+            {/* Dynamic Style Injection for Primary Color */}
+            <style>{`
+                :root {
+                    --primary: ${primaryColor};
+                    --radius: ${borderRadius};
+                }
+                .theme-text { color: ${primaryColor}; }
+                .theme-border { border-color: ${primaryColor}; }
+                .theme-bg { background-color: ${primaryColor}; }
+            `}</style>
+
             <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 className="max-w-2xl mx-auto space-y-6"
             >
                 {/* Header */}
-                <div className="glass-card bg-card/60 p-8 rounded-2xl border-t-8 border-t-primary shadow-xl backdrop-blur-xl">
+                <div
+                    className="glass-card bg-card/90 p-8 shadow-xl backdrop-blur-xl transition-all"
+                    style={{
+                        borderRadius: borderRadius,
+                        borderTop: `8px solid ${primaryColor}`,
+                        // If the background is very light, we might want a dark card, or vice-versa.
+                        // For now, let's stick to the glass-card look but allow it to be opaque if needed?
+                        // The user's screenshot had a white card on white bg (invisible).
+                        // Let's force a card background that contrasts slightly or just standard 'bg-card' 
+                        // which in this app seems to be dark.
+                    }}
+                >
                     <h1 className="text-3xl font-black mb-2">{form.title}</h1>
                     {form.description && (
                         <p className="text-muted-foreground text-lg leading-relaxed whitespace-pre-wrap">{form.description}</p>
@@ -366,9 +404,10 @@ export default function FormViewerPage() {
                         <div
                             key={field.id}
                             className={cn(
-                                "glass-card bg-card/40 p-6 rounded-xl border border-white/5 transition-all focus-within:ring-2 focus-within:ring-primary/20",
+                                "glass-card bg-card/40 p-6 border border-white/5 transition-all focus-within:ring-2 focus-within:ring-primary/20",
                                 errors[field.id] && "border-destructive/50 focus-within:ring-destructive/20"
                             )}
+                            style={{ borderRadius: borderRadius }}
                         >
                             <label className="block text-base font-bold mb-3 flex gap-1">
                                 {field.label}

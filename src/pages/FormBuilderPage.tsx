@@ -9,9 +9,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-    Type, AlignLeft, Hash, Star, CheckSquare, List, Calendar,
+    Type, AlignLeft, Hash, Star, List, Calendar,
     MoveVertical, Trash2, Copy, Plus, Save, Eye, Settings, ArrowLeft, Pencil, X, Globe, Link as LinkIcon, ExternalLink, BarChart3,
-    Mail, Phone, Clock, LogIn, Upload, PenTool, Image as ImageIcon, Heading
+    Mail, Phone, Clock, LogIn, Upload, PenTool, Image as ImageIcon, Heading, CheckSquare
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -328,6 +328,12 @@ export default function FormBuilderPage() {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [activeTab, setActiveTab] = useState<'build' | 'my-forms'>('build');
+    const [themeTab, setThemeTab] = useState<'presets' | 'custom'>('presets');
+
+    // Theme State
+    const [themeColor, setThemeColor] = useState("#7c3aed");
+    const [bgColor, setBgColor] = useState("#ffffff");
+    const [borderRadius, setBorderRadius] = useState("0.75rem");
 
     // Sensors for drag & drop
     const sensors = useSensors(
@@ -382,6 +388,12 @@ export default function FormBuilderPage() {
         try {
             const { data: user } = await supabase.auth.getUser();
 
+            const themeData = {
+                primaryColor: themeColor,
+                backgroundColor: bgColor,
+                borderRadius: borderRadius
+            };
+
             let currentFormId = editingFormId;
 
             if (editingFormId) {
@@ -391,7 +403,8 @@ export default function FormBuilderPage() {
                     .update({
                         title,
                         description,
-                        is_active: true // Ensure it stays active on edit
+                        is_active: true, // Ensure it stays active on edit
+                        theme: themeData
                     })
                     .eq('id', editingFormId);
 
@@ -408,7 +421,8 @@ export default function FormBuilderPage() {
                         title,
                         description,
                         created_by: user.user?.id,
-                        is_active: true
+                        is_active: true,
+                        theme: themeData
                     })
                     .select()
                     .single();
@@ -420,8 +434,9 @@ export default function FormBuilderPage() {
             // Insert Fields (for both create and update flows)
             if (fields.length > 0 && currentFormId) {
                 const fieldData = fields.map((f, index) => ({
+                    id: f.id, // PERSIST ID to maintain link with response_data
                     form_id: currentFormId,
-                    label: f.label, // This reads the current state 'f.label' which should be correct
+                    label: f.label,
                     field_type: f.type,
                     is_required: f.required,
                     options: f.options,
@@ -450,6 +465,9 @@ export default function FormBuilderPage() {
     const resetBuilder = () => {
         setTitle("Untitled Form");
         setDescription("");
+        setThemeColor("#7c3aed");
+        setBgColor("#ffffff");
+        setBorderRadius("0.75rem");
         setFields([]);
         setEditingFormId(null);
     };
@@ -460,6 +478,17 @@ export default function FormBuilderPage() {
             setEditingFormId(form.id);
             setTitle(form.title);
             setDescription(form.description || "");
+
+            // Load theme if exists
+            if (form.theme) {
+                setThemeColor(form.theme.primaryColor || "#7c3aed");
+                setBgColor(form.theme.backgroundColor || "#ffffff");
+                setBorderRadius(form.theme.borderRadius || "0.75rem");
+            } else {
+                setThemeColor("#7c3aed");
+                setBgColor("#ffffff");
+                setBorderRadius("0.75rem");
+            }
 
             // Fetch fields
             const { data: formFields, error } = await supabase
@@ -472,7 +501,7 @@ export default function FormBuilderPage() {
 
             // Map DB fields back to UI fields
             const mappedFields: FormField[] = (formFields || []).map(f => ({
-                id: crypto.randomUUID(), // New temp ID for dnd-kit stability (db recreation strategy)
+                id: f.id, // Use actual DB ID to preserve history
                 label: f.label,
                 type: f.field_type as FieldType,
                 required: f.is_required,
@@ -500,15 +529,8 @@ export default function FormBuilderPage() {
             toast.success("Form deleted");
             // If we were editing this form, reset
             if (editingFormId === id) resetBuilder();
-            // Trigger refresh in MyFormsList component effectively by remounting or state update
-            // Since MyFormsList is internal, we can just let it re-render? No, it has internal state.
-            // We need to trigger a reload.
-            // I'll make MyFormsList accept a key or something.
-            // Better yet, I'll move the fetch logic up?
-            // For simplicity, I'll pass a refresh trigger to MyFormsList relative to activeTab
+
             if (activeTab === 'my-forms') {
-                // Force a re-render of MyFormsList by changing its key
-                // This is a common pattern to re-mount a component and trigger its useEffect
                 setActiveTab('build'); // Temporarily switch tab
                 setTimeout(() => setActiveTab('my-forms'), 0); // Switch back to force re-mount
             }
@@ -516,9 +538,11 @@ export default function FormBuilderPage() {
     };
 
     // My Forms List Component (Internal)
-    const MyFormsList = () => { // Removed 'key' from props as it's a special React prop
+    const MyFormsList = () => {
         const [forms, setForms] = useState<any[]>([]);
         const [loading, setLoading] = useState(true);
+        const [searchQuery, setSearchQuery] = useState("");
+        const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
         const loadForms = async () => {
             setLoading(true);
@@ -532,7 +556,7 @@ export default function FormBuilderPage() {
 
         useEffect(() => {
             loadForms();
-        }, [activeTab]); // Reload forms when activeTab changes to 'my-forms'
+        }, [activeTab]);
 
         const copyLink = (id: string) => {
             const url = `${window.location.origin}/forms/${id}`;
@@ -540,64 +564,142 @@ export default function FormBuilderPage() {
             toast.success("Link copied to clipboard");
         };
 
+        const filteredForms = forms.filter(form => {
+            const matchesSearch = form.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (form.description || "").toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesFilter = filter === 'all' ? true :
+                filter === 'active' ? form.is_active : !form.is_active;
+            return matchesSearch && matchesFilter;
+        });
+
         if (loading) return <div className="p-12 text-center text-muted-foreground"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />Loading forms...</div>;
 
 
+        const toggleStatus = async (id: string, currentStatus: boolean, e: React.MouseEvent) => {
+            e.stopPropagation();
+            try {
+                const { error } = await supabase
+                    .from('admin_forms')
+                    .update({ is_active: !currentStatus })
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                // Optimistic update
+                setForms(forms.map(f => f.id === id ? { ...f, is_active: !currentStatus } : f));
+                toast.success(`Form ${!currentStatus ? 'activated' : 'deactivated'}`);
+            } catch (err) {
+                toast.error("Failed to update status");
+            }
+        };
+
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {forms.length === 0 ? (
-                    <div className="col-span-full py-20 text-center glass-card rounded-2xl border-white/5 bg-white/5">
-                        <p className="text-xl font-bold text-muted-foreground">No forms created yet</p>
-                        <button onClick={() => setActiveTab('build')} className="mt-4 text-primary hover:underline">Create your first form</button>
-                    </div>
-                ) : (
-                    forms.map(form => (
-                        <div key={form.id} className="glass-card bg-card/40 border-white/5 p-8 rounded-3xl hover:border-primary/20 transition-all group flex flex-col hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1">
-                            <div className="flex justify-between items-start mb-6">
-                                <div className="p-4 bg-primary/10 rounded-2xl text-primary">
-                                    <Globe size={24} />
-                                </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => navigate(`/admin/forms/${form.id}/responses`)} className="p-2.5 hover:bg-white/10 rounded-xl text-muted-foreground hover:text-emerald-400 transition-colors" title="View Responses">
-                                        <BarChart3 size={18} />
-                                    </button>
-                                    <button onClick={() => editForm(form)} className="p-2.5 hover:bg-white/10 rounded-xl text-muted-foreground hover:text-primary transition-colors" title="Edit Form">
-                                        <Pencil size={18} />
-                                    </button>
-                                    <button onClick={(e) => deleteForm(form.id, e)} className="p-2.5 hover:bg-white/10 rounded-xl text-muted-foreground hover:text-destructive transition-colors" title="Delete Form">
-                                        <Trash2 size={18} />
-                                    </button>
-                                    <div className="w-[1px] bg-white/10 mx-1" />
-                                    <button onClick={() => copyLink(form.id)} className="p-2.5 hover:bg-white/10 rounded-xl text-muted-foreground hover:text-foreground transition-colors" title="Copy Link">
-                                        <LinkIcon size={18} />
-                                    </button>
-                                    <a href={`/forms/${form.id}`} target="_blank" className="p-2.5 hover:bg-white/10 rounded-xl text-muted-foreground hover:text-foreground transition-colors" title="View Form">
-                                        <ExternalLink size={18} />
-                                    </a>
-                                </div>
-                            </div>
-
-                            <h3 className="font-black text-xl mb-2 line-clamp-1 tracking-tight">{form.title}</h3>
-                            <p className="text-base text-muted-foreground line-clamp-3 mb-6 flex-1">{form.description || 'No description provided for this form.'}</p>
-
-                            <div className="grid grid-cols-2 gap-4 py-4 border-t border-white/5 mt-auto">
-                                <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Responses</p>
-                                    <p className="text-2xl font-bold">{form.admin_form_responses[0]?.count || 0}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Created</p>
-                                    <p className="text-sm font-medium">{new Date(form.created_at).toLocaleDateString()}</p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 mt-4 pt-2">
-                                <span className={cn("w-2.5 h-2.5 rounded-full ring-2 ring-background", form.is_active ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-red-500")} />
-                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{form.is_active ? 'Active' : 'Inactive'}</span>
-                            </div>
+            <div className="space-y-6">
+                {/* Search & Filter Toolbar */}
+                <div className="flex flex-col md:flex-row gap-4 items-center justify-between glass-card p-4 rounded-xl border-white/5 bg-card/20 sticky top-20 z-10 backdrop-blur-md">
+                    <div className="relative w-full md:w-96">
+                        <input
+                            placeholder="Search forms..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 rounded-lg bg-black/20 border border-white/10 focus:border-primary/50 outline-none text-sm transition-all"
+                        />
+                        <div className="absolute left-3 top-2.5 text-muted-foreground">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                         </div>
-                    ))
-                )}
+                    </div>
+
+                    <div className="flex bg-black/20 p-1 rounded-lg border border-white/5 w-full md:w-auto">
+                        {(['all', 'active', 'inactive'] as const).map((f) => (
+                            <button
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                className={cn(
+                                    "flex-1 md:flex-none px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all",
+                                    filter === f ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                                )}
+                            >
+                                {f}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredForms.length === 0 ? (
+                        <div className="col-span-full py-20 text-center glass-card rounded-2xl border-white/5 bg-white/5">
+                            <p className="text-xl font-bold text-muted-foreground">No forms match your search</p>
+                            <button onClick={() => { setSearchQuery(''); setFilter('all'); }} className="mt-2 text-primary text-sm hover:underline">Clear filters</button>
+                        </div>
+                    ) : (
+                        filteredForms.map(form => (
+                            <div
+                                key={form.id}
+                                className="glass-card bg-card/40 border-white/5 p-6 rounded-3xl hover:border-primary/20 transition-all group flex flex-col hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 relative overflow-hidden"
+                            >
+                                {/* Decorative Gradient bg */}
+                                <div
+                                    className="absolute top-0 left-0 right-0 h-1"
+                                    style={{ background: form.theme?.primaryColor || '#7c3aed' }}
+                                />
+
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="p-3 bg-white/5 rounded-xl text-primary" style={{ color: form.theme?.primaryColor || 'inherit' }}>
+                                        <Globe size={20} />
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => navigate(`/admin/forms/${form.id}/responses`)} className="p-2 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-emerald-400 transition-colors" title="View Responses">
+                                            <BarChart3 size={16} />
+                                        </button>
+                                        <button onClick={() => editForm(form)} className="p-2 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-primary transition-colors" title="Edit Form">
+                                            <Pencil size={16} />
+                                        </button>
+                                        <a href={`/forms/${form.id}`} target="_blank" className="p-2 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-foreground transition-colors" title="View Form">
+                                            <ExternalLink size={16} />
+                                        </a>
+                                        <div className="w-[1px] bg-white/10 mx-1" />
+                                        <button onClick={(e) => deleteForm(form.id, e)} className="p-2 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-destructive transition-colors" title="Delete Form">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <h3 className="font-black text-lg mb-1 line-clamp-1 tracking-tight">{form.title}</h3>
+                                <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-1 h-10">{form.description || 'No description provided.'}</p>
+
+                                <div className="flex items-center justify-between pt-4 border-t border-white/5 mt-auto">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] uppercase font-bold text-muted-foreground">Responses</span>
+                                        <span className="text-xl font-bold">{form.admin_form_responses[0]?.count || 0}</span>
+                                    </div>
+
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Status</span>
+                                        <button
+                                            onClick={(e) => toggleStatus(form.id, form.is_active, e)}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all hover:scale-105 active:scale-95",
+                                                form.is_active
+                                                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20"
+                                                    : "bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500/20"
+                                            )}
+                                        >
+                                            <span className={cn("w-1.5 h-1.5 rounded-full", form.is_active ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
+                                            <span className="text-[10px] font-bold uppercase tracking-wider">{form.is_active ? 'Active' : 'Inactive'}</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => copyLink(form.id)}
+                                    className="mt-4 w-full py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0"
+                                >
+                                    <LinkIcon size={14} /> Copy Public Link
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
         );
     };
@@ -647,6 +749,159 @@ export default function FormBuilderPage() {
                     <div className="flex gap-8 items-start">
                         {/* Sidebar: Components */}
                         <div className="w-72 sticky top-24 space-y-6">
+
+                            {/* Advanced Design Studio (New) */}
+                            <div className="glass-card bg-card/40 border-white/5 p-5 rounded-2xl overflow-hidden relative group">
+                                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                        Design Studio
+                                    </h3>
+                                    <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5">
+                                        <button
+                                            onClick={() => setThemeTab('presets')}
+                                            className={cn("px-2 py-1 rounded-md text-[10px] font-bold uppercase transition-all", themeTab === 'presets' ? "bg-white/10 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                                        >
+                                            Presets
+                                        </button>
+                                        <button
+                                            onClick={() => setThemeTab('custom')}
+                                            className={cn("px-2 py-1 rounded-md text-[10px] font-bold uppercase transition-all", themeTab === 'custom' ? "bg-white/10 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                                        >
+                                            Custom
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {themeTab === 'presets' ? (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {[
+                                                { name: "Snackzo", primary: "#7c3aed", bg: "#ffffff" },
+                                                { name: "Ocean", primary: "#0ea5e9", bg: "#f0f9ff" },
+                                                { name: "Midnight", primary: "#6366f1", bg: "#0f172a" },
+                                                { name: "Forest", primary: "#10b981", bg: "#ecfdf5" },
+                                                { name: "Sunset", primary: "#f97316", bg: "#fff7ed" },
+                                                { name: "Rose", primary: "#ec4899", bg: "#fff1f2" },
+                                            ].map((preset) => (
+                                                <button
+                                                    key={preset.name}
+                                                    onClick={() => { setThemeColor(preset.primary); setBgColor(preset.bg); }}
+                                                    className="group/preset relative flex flex-col gap-2 p-2 rounded-xl border border-white/5 hover:border-primary/30 bg-black/5 transition-all hover:bg-black/10 text-left"
+                                                >
+                                                    <div className="h-12 w-full rounded-lg shadow-inner relative overflow-hidden transition-all group-hover/preset:shadow-md" style={{ background: preset.bg }}>
+                                                        <div className="absolute top-2 left-2 w-6 h-6 rounded-md shadow-lg transform -rotate-12 group-hover/preset:scale-110 transition-transform" style={{ background: preset.primary }} />
+                                                    </div>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider pl-1">{preset.name}</span>
+                                                    {themeColor === preset.primary && bgColor === preset.bg && (
+                                                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center animate-in zoom-in duration-200">
+                                                            <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-5 animate-in slide-in-from-right-4 duration-300">
+                                            {/* Primary Color */}
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex justify-between">
+                                                    Brand Color
+                                                    <span className="text-foreground">{themeColor}</span>
+                                                </label>
+                                                <div className="flex gap-2 items-center">
+                                                    <div className="h-10 w-10 rounded-xl border-2 border-white/20 shadow-lg shrink-0 overflow-hidden relative group/picker">
+                                                        <div className="absolute inset-0 bg-checkerboard opacity-10" />
+                                                        <input
+                                                            type="color"
+                                                            value={themeColor}
+                                                            onChange={e => setThemeColor(e.target.value)}
+                                                            className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 cursor-pointer p-0 border-0 opacity-0"
+                                                        />
+                                                        <div className="w-full h-full" style={{ background: themeColor }} />
+                                                    </div>
+                                                    <div className="flex-1 overflow-x-auto pb-2 flex gap-1.5 scrollbar-none mask-fade-right">
+                                                        {["#7c3aed", "#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#6366f1", "#14b8a6"].map(c => (
+                                                            <button
+                                                                key={c}
+                                                                onClick={() => setThemeColor(c)}
+                                                                className={cn("w-6 h-6 rounded-lg transition-all border border-white/10 shrink-0", themeColor === c ? "ring-2 ring-offset-2 ring-offset-black ring-white scale-110" : "hover:scale-110")}
+                                                                style={{ background: c }}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="h-[1px] w-full bg-white/5" />
+
+                                            {/* Background Color */}
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex justify-between">
+                                                    Canvas Tone
+                                                    <span className="text-foreground">{bgColor}</span>
+                                                </label>
+                                                <div className="flex gap-2 items-center">
+                                                    <div className="h-10 w-10 rounded-xl border-2 border-white/20 shadow-lg shrink-0 overflow-hidden relative group/picker">
+                                                        <input
+                                                            type="color"
+                                                            value={bgColor}
+                                                            onChange={e => setBgColor(e.target.value)}
+                                                            className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 cursor-pointer p-0 border-0 opacity-0"
+                                                        />
+                                                        <div className="w-full h-full" style={{ background: bgColor }} />
+                                                    </div>
+                                                    <div className="flex-1 overflow-x-auto pb-2 flex gap-1.5 scrollbar-none mask-fade-right">
+                                                        {["#ffffff", "#f8fafc", "#f3f4f6", "#fff1f2", "#ecfdf5", "#eff6ff", "#0f172a", "#18181b"].map(c => (
+                                                            <button
+                                                                key={c}
+                                                                onClick={() => setBgColor(c)}
+                                                                className={cn("w-6 h-6 rounded-lg transition-all border border-white/10 shrink-0", bgColor === c ? "ring-2 ring-offset-2 ring-offset-black ring-white scale-110" : "hover:scale-110")}
+                                                                style={{ background: c }}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="h-[1px] w-full bg-white/5" />
+
+                                            {/* Border Radius */}
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex justify-between">
+                                                    Corner Style
+                                                    <span className="text-foreground">
+                                                        {borderRadius === '0rem' ? 'Sharp' : borderRadius === '0.75rem' ? 'Soft' : 'Round'}
+                                                    </span>
+                                                </label>
+                                                <div className="flex bg-black/20 p-1 rounded-xl border border-white/5">
+                                                    <button
+                                                        onClick={() => setBorderRadius('0rem')}
+                                                        className={cn("flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors", borderRadius === '0rem' ? "bg-white/10 shadow-sm text-foreground font-bold" : "text-muted-foreground hover:text-foreground hover:bg-white/5")}
+                                                    >
+                                                        Sharp
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setBorderRadius('0.75rem')}
+                                                        className={cn("flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors", borderRadius === '0.75rem' ? "bg-white/10 shadow-sm text-foreground font-bold" : "text-muted-foreground hover:text-foreground hover:bg-white/5")}
+                                                    >
+                                                        Soft
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setBorderRadius('2rem')}
+                                                        className={cn("flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors", borderRadius === '2rem' ? "bg-white/10 shadow-sm text-foreground font-bold" : "text-muted-foreground hover:text-foreground hover:bg-white/5")}
+                                                    >
+                                                        Round
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
                             <div className="glass-card bg-card/40 border-white/5 p-4 rounded-2xl">
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4 px-2">Form Components</h3>
                                 <div className="space-y-2">
@@ -656,7 +911,7 @@ export default function FormBuilderPage() {
                                             onClick={() => addField(t.type as FieldType)}
                                             className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all text-sm font-medium text-left group"
                                         >
-                                            <div className="p-2 bg-background rounded-lg text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shadow-sm">
+                                            <div className="p-2 bg-background rounded-lg text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shadow-sm" style={{ color: themeColor }}>
                                                 <t.icon size={16} />
                                             </div>
                                             <div>
@@ -674,82 +929,100 @@ export default function FormBuilderPage() {
                             </div>
                         </div>
 
-                        {/* Builder Canvas */}
+                        {/* Builder Canvas with Live Preview */}
                         <div className="flex-1 space-y-6">
-                            {/* Form Header */}
-                            <div className="glass-card bg-card/40 border-white/5 p-8 rounded-2xl border-t-4 border-t-primary shadow-2xl">
-                                <input
-                                    value={title}
-                                    onChange={e => setTitle(e.target.value)}
-                                    className="text-4xl font-black bg-transparent border-none focus:ring-0 w-full placeholder:text-muted-foreground/20 leading-tight mb-2 p-0"
-                                    placeholder="Untitled Form"
+                            {/* Form Preview Container */}
+                            <div className="border border-dashed border-white/10 rounded-3xl p-8 bg-black/20 min-h-[calc(100vh-12rem)] relative overflow-hidden transition-all duration-500">
+                                {/* Simulated Background */}
+                                <div
+                                    className="absolute inset-0 transition-colors duration-500 -z-10"
+                                    style={{ background: bgColor }}
                                 />
-                                <textarea
-                                    value={description}
-                                    onChange={e => setDescription(e.target.value)}
-                                    className="w-full bg-transparent border-none focus:ring-0 resize-none text-muted-foreground p-0 h-auto min-h-[40px] text-lg"
-                                    placeholder="Add a description for your form..."
-                                    rows={1}
-                                />
-                            </div>
 
-                            {/* Droppable Area */}
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleDragEnd}
-                                onDragStart={(event) => setActiveId(event.active.id as string)}
-                            >
-                                <SortableContext items={fields} strategy={verticalListSortingStrategy}>
-                                    <div className="space-y-4 pb-20">
-                                        <AnimatePresence>
-                                            {fields.length === 0 ? (
-                                                <motion.div
-                                                    initial={{ opacity: 0 }}
-                                                    animate={{ opacity: 1 }}
-                                                    className="py-20 flex flex-col items-center justify-center text-muted-foreground/30 border-2 border-dashed border-white/5 rounded-2xl bg-white/5"
-                                                >
-                                                    <div className="p-4 bg-white/5 rounded-full mb-4">
-                                                        <Plus size={32} />
-                                                    </div>
-                                                    <p className="text-lg font-bold">Your form is empty</p>
-                                                    <p className="text-sm">Click items on the sidebar to add questions</p>
-                                                </motion.div>
-                                            ) : (
-                                                fields.map(field => (
-                                                    <SortableField
-                                                        key={field.id}
-                                                        field={field}
-                                                        activeId={activeId}
-                                                        updateField={updateField}
-                                                        removeField={removeField}
-                                                        duplicateField={duplicateField}
-                                                    />
-                                                ))
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
-                                </SortableContext>
+                                {/* Form Header */}
+                                <div
+                                    className="border border-black/5 shadow-xl p-8 mb-6 transition-all duration-300 bg-white"
+                                    style={{
+                                        borderTop: `8px solid ${themeColor}`,
+                                        borderRadius: borderRadius
+                                    }}
+                                >
+                                    <input
+                                        value={title}
+                                        onChange={e => setTitle(e.target.value)}
+                                        className="text-4xl font-black bg-transparent border-none focus:ring-0 w-full placeholder:text-gray-300 leading-tight mb-2 p-0 text-gray-900"
+                                        placeholder="Untitled Form"
+                                    />
+                                    <textarea
+                                        value={description}
+                                        onChange={e => setDescription(e.target.value)}
+                                        className="w-full bg-transparent border-none focus:ring-0 resize-none text-muted-foreground p-0 h-auto min-h-[40px] text-lg"
+                                        placeholder="Add a description for your form..."
+                                        rows={1}
+                                    />
+                                </div>
 
-                                <DragOverlay>
-                                    {activeId ? (
-                                        <div className="bg-card glass-card border border-primary/50 shadow-2xl rounded-xl p-6 opacity-90 rotate-2 cursor-grabbing">
-                                            <p className="font-bold text-lg">Question</p>
+                                {/* Droppable Area */}
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={handleDragEnd}
+                                    onDragStart={(event) => setActiveId(event.active.id as string)}
+                                >
+                                    <SortableContext items={fields} strategy={verticalListSortingStrategy}>
+                                        <div className="space-y-4 pb-20">
+                                            <AnimatePresence>
+                                                {fields.length === 0 ? (
+                                                    <motion.div
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        className="py-20 flex flex-col items-center justify-center text-muted-foreground/30 border-2 border-dashed border-white/5 rounded-2xl bg-white/5"
+                                                    >
+                                                        <div className="p-4 bg-white/5 rounded-full mb-4">
+                                                            <Plus size={32} />
+                                                        </div>
+                                                        <p className="text-lg font-bold">Your form is empty</p>
+                                                        <p className="text-sm">Click items on the sidebar to add questions</p>
+                                                    </motion.div>
+                                                ) : (
+                                                    fields.map(field => (
+                                                        <SortableField
+                                                            key={field.id}
+                                                            field={field}
+                                                            activeId={activeId}
+                                                            updateField={updateField}
+                                                            removeField={removeField}
+                                                            duplicateField={duplicateField}
+                                                        />
+                                                    ))
+                                                )}
+                                            </AnimatePresence>
                                         </div>
-                                    ) : null}
-                                </DragOverlay>
-                            </DndContext>
+                                    </SortableContext>
+
+                                    <DragOverlay>
+                                        {activeId ? (
+                                            <div className="bg-card glass-card border rounded-xl p-6 opacity-90 rotate-2 cursor-grabbing" style={{ borderColor: themeColor }}>
+                                                <p className="font-bold text-lg">Question</p>
+                                            </div>
+                                        ) : null}
+                                    </DragOverlay>
+                                </DndContext>
+                            </div>
                         </div>
                     </div>
                 ) : (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center justify-between mb-2">
                             <div>
                                 <h1 className="text-3xl font-black mb-2">My Forms</h1>
                                 <p className="text-muted-foreground">Manage and track your active forms</p>
                             </div>
+                            <button onClick={() => { setActiveTab('build'); resetBuilder(); }} className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold text-sm hover:opacity-90 flex items-center gap-2">
+                                <Plus size={16} /> Create New
+                            </button>
                         </div>
-                        <MyFormsList /> {/* Removed key prop from here, as it's handled by activeTab dependency in useEffect */}
+                        <MyFormsList />
                     </div>
                 )}
             </div>

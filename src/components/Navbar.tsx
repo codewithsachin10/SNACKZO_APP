@@ -103,8 +103,9 @@ const Navbar = () => {
             <NotificationCenter />
             <button
               id="nav-cart"
+              disabled={!user}
               onClick={() => setIsCartOpen(true)}
-              className="neon-btn bg-secondary/20 hover:bg-secondary/30 text-secondary px-4 py-2 rounded-xl flex items-center gap-2 relative border border-secondary/30"
+              className={`neon-btn bg-secondary/20 hover:bg-secondary/30 text-secondary px-4 py-2 rounded-xl flex items-center gap-2 relative border border-secondary/30 ${!user ? "opacity-50 cursor-not-allowed grayscale" : ""}`}
             >
               <ShoppingCart size={20} />
               <span className="hidden sm:inline font-medium">Cart</span>

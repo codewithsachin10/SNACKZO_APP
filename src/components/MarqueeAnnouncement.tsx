@@ -42,7 +42,7 @@ const MarqueeAnnouncement = () => {
   };
 
   return (
-    <div className="mt-16 bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20 border-y border-border py-3 overflow-hidden">
+    <div className="mt-28 md:mt-16 bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20 border-y border-border py-3 overflow-hidden">
       <div className="animate-marquee whitespace-nowrap flex">
         {/* Duplicate list multiple times for smooth infinite scroll */}
         {[...announcements, ...announcements, ...announcements].map((text, index) => (

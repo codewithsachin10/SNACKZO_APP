@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Bell, BellOff, TrendingDown, AlertCircle, Check, Trash2, 
-  ChevronDown, LineChart, Clock, ArrowDownRight 
+import {
+  Bell, BellOff, TrendingDown, AlertCircle, Check, Trash2,
+  ChevronDown, LineChart, Clock, ArrowDownRight
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +15,7 @@ interface PriceAlert {
   id: string;
   product_id: string;
   target_price: number;
-  is_triggered: boolean;
+  triggered_at: string | null;
   created_at: string;
   product?: {
     name: string;
@@ -36,6 +37,7 @@ interface PriceAlertsProps {
 
 export function PriceAlerts({ productId, productName, currentPrice }: PriceAlertsProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
@@ -65,7 +67,7 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
         .select("is_enabled")
         .eq("feature_name", "price_alerts")
         .single();
-      
+
       // Default to enabled if error or no data
       setFeatureEnabled(error ? true : (data?.is_enabled !== false));
     } catch {
@@ -80,7 +82,7 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
       .select("*")
       .eq("user_id", user?.id)
       .eq("product_id", productId);
-    
+
     if (data) setAlerts(data);
   };
 
@@ -93,19 +95,19 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
       `)
       .eq("user_id", user?.id)
       .order("created_at", { ascending: false });
-    
+
     if (data) setAlerts(data);
     setIsLoading(false);
   };
 
   const fetchPriceHistory = async () => {
     if (!productId) return;
-    
+
     const { data } = await (supabase.from as any)("price_history")
       .select("price, changed_at")
       .eq("product_id", productId)
       .order("changed_at", { ascending: true });
-    
+
     if (data) setPriceHistory(data);
   };
 
@@ -134,7 +136,8 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
     const { error } = await (supabase.from as any)("price_alerts").insert({
       user_id: user.id,
       product_id: productId,
-      target_price: target
+      target_price: target,
+      original_price: currentPrice || target // Added original_price
     });
 
     if (!error) {
@@ -145,6 +148,13 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
         title: "Alert created! 🔔",
         description: `We'll notify you when price drops to ₹${target}`
       });
+    } else {
+      console.error("Price alert error:", error);
+      toast({
+        title: "Failed to create alert",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -152,7 +162,7 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
     await (supabase.from as any)("price_alerts")
       .delete()
       .eq("id", alertId);
-    
+
     setAlerts(alerts.filter(a => a.id !== alertId));
     toast({
       title: "Alert removed",
@@ -167,7 +177,7 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
   // Single product view
   if (productId) {
     const hasAlert = alerts.length > 0;
-    const lowestPrice = priceHistory.length > 0 
+    const lowestPrice = priceHistory.length > 0
       ? Math.min(...priceHistory.map(p => p.price))
       : currentPrice;
     const priceDropPercent = currentPrice && lowestPrice
@@ -194,14 +204,14 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
                 {hasAlert ? "Price alert active" : "Get price drop alerts"}
               </p>
               <p className="text-sm text-muted-foreground">
-                {hasAlert 
+                {hasAlert
                   ? `Watching for ₹${alerts[0].target_price}`
                   : "Be notified when price drops"
                 }
               </p>
             </div>
           </div>
-          
+
           {hasAlert ? (
             <button
               onClick={() => deleteAlert(alerts[0].id)}
@@ -211,7 +221,13 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
             </button>
           ) : (
             <button
-              onClick={() => setShowCreateForm(true)}
+              onClick={() => {
+                if (!user) {
+                  navigate("/auth?mode=signin");
+                  return;
+                }
+                setShowCreateForm(true);
+              }}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
             >
               Set Alert
@@ -280,8 +296,8 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
 
         {/* Price History Chart */}
         {priceHistory.length > 1 && (
-          <InternalPriceChart 
-            history={priceHistory} 
+          <InternalPriceChart
+            history={priceHistory}
             currentPrice={currentPrice || 0}
           />
         )}
@@ -332,7 +348,7 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
               exit={{ opacity: 0, x: -100 }}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-xl",
-                alert.is_triggered
+                alert.triggered_at
                   ? "bg-green-500/10 border-2 border-green-500"
                   : "bg-muted/50"
               )}
@@ -340,8 +356,8 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
               {/* Product image */}
               <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden shrink-0">
                 {alert.product?.image_url ? (
-                  <img 
-                    src={alert.product.image_url} 
+                  <img
+                    src={alert.product.image_url}
                     alt={alert.product.name}
                     className="w-full h-full object-cover"
                   />
@@ -371,7 +387,7 @@ export function PriceAlerts({ productId, productName, currentPrice }: PriceAlert
               </div>
 
               {/* Status */}
-              {alert.is_triggered ? (
+              {alert.triggered_at ? (
                 <span className="px-2 py-1 bg-green-500 text-white text-xs rounded-full">
                   Price dropped!
                 </span>
@@ -453,7 +469,7 @@ function InternalPriceChart({ history, currentPrice }: InternalPriceChartProps) 
                     fill="none"
                     stroke="hsl(var(--primary))"
                     strokeWidth="2"
-                    points={normalizedPrices.map((p, i) => 
+                    points={normalizedPrices.map((p, i) =>
                       `${(i / (normalizedPrices.length - 1)) * 100}%,${100 - p}%`
                     ).join(" ")}
                   />
@@ -462,7 +478,7 @@ function InternalPriceChart({ history, currentPrice }: InternalPriceChartProps) 
                   <polygon
                     fill="hsl(var(--primary))"
                     fillOpacity={0.1}
-                    points={`0%,100% ${normalizedPrices.map((p, i) => 
+                    points={`0%,100% ${normalizedPrices.map((p, i) =>
                       `${(i / (normalizedPrices.length - 1)) * 100}%,${100 - p}%`
                     ).join(" ")} 100%,100%`}
                   />
@@ -541,13 +557,13 @@ export function PriceDropBadge({ productId, currentPrice, originalPrice }: Price
 
   const fetchPriceHistory = async () => {
     if (!productId) return;
-    
+
     const { data } = await (supabase.from as any)("price_history")
       .select("price")
       .eq("product_id", productId)
       .order("changed_at", { ascending: false })
       .limit(10);
-    
+
     if (data && data.length > 1) {
       const previousPrice = data[1]?.price;
       if (previousPrice && currentPrice < previousPrice) {
@@ -581,6 +597,7 @@ interface PriceAlertButtonProps {
 
 export function PriceAlertButton({ productId, currentPrice }: PriceAlertButtonProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [hasAlert, setHasAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -595,13 +612,13 @@ export function PriceAlertButton({ productId, currentPrice }: PriceAlertButtonPr
       .eq("user_id", user?.id)
       .eq("product_id", productId)
       .single();
-    
+
     setHasAlert(!!data);
   };
 
   const toggleAlert = async () => {
     if (!user) {
-      toast({ title: "Please login", description: "You need to be logged in to set price alerts" });
+      navigate("/auth?mode=signin");
       return;
     }
 
@@ -613,24 +630,24 @@ export function PriceAlertButton({ productId, currentPrice }: PriceAlertButtonPr
         .delete()
         .eq("user_id", user.id)
         .eq("product_id", productId);
-      
+
       setHasAlert(false);
       toast({ title: "Alert removed", description: "You won't be notified about price drops" });
     } else {
       // Create alert at 10% below current price
       const targetPrice = Math.floor(currentPrice * 0.9);
-      
+
       await (supabase.from as any)("price_alerts")
         .insert({
           user_id: user.id,
           product_id: productId,
           target_price: targetPrice
         });
-      
+
       setHasAlert(true);
-      toast({ 
-        title: "🔔 Price alert set!", 
-        description: `We'll notify you when price drops below ₹${targetPrice}` 
+      toast({
+        title: "🔔 Price alert set!",
+        description: `We'll notify you when price drops below ₹${targetPrice}`
       });
     }
 
@@ -645,8 +662,8 @@ export function PriceAlertButton({ productId, currentPrice }: PriceAlertButtonPr
       disabled={isLoading}
       className={cn(
         "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors",
-        hasAlert 
-          ? "bg-primary text-primary-foreground" 
+        hasAlert
+          ? "bg-primary text-primary-foreground"
           : "bg-muted hover:bg-muted/80"
       )}
     >
@@ -674,13 +691,13 @@ export function PriceHistoryChart({ productId }: PriceHistoryChartProps) {
 
   const fetchHistory = async () => {
     const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
-    
+
     const { data } = await (supabase.from as any)("price_history")
       .select("price, changed_at")
       .eq("product_id", productId)
       .gte("changed_at", thirtyDaysAgo)
       .order("changed_at", { ascending: true });
-    
+
     if (data && data.length > 0) {
       setHistory(data);
     }
@@ -714,7 +731,7 @@ export function PriceHistoryChart({ productId }: PriceHistoryChartProps) {
   const width = 300;
   const height = 100;
   const padding = 10;
-  
+
   const points = history.map((h, i) => {
     const x = padding + (i / (history.length - 1)) * (width - padding * 2);
     const y = height - padding - ((h.price - minPrice) / priceRange) * (height - padding * 2);
@@ -735,7 +752,7 @@ export function PriceHistoryChart({ productId }: PriceHistoryChartProps) {
           {/* Grid lines */}
           <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="currentColor" strokeOpacity={0.1} />
           <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="currentColor" strokeOpacity={0.1} />
-          
+
           {/* Price line */}
           <polyline
             fill="none"
@@ -743,7 +760,7 @@ export function PriceHistoryChart({ productId }: PriceHistoryChartProps) {
             strokeWidth="2"
             points={points}
           />
-          
+
           {/* Area fill */}
           <polygon
             fill="hsl(var(--primary))"

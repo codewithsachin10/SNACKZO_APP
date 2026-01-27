@@ -60,7 +60,7 @@ const statusSteps = [
 
 const OrderTracking = () => {
   const { orderId } = useParams();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { addToCart } = useCart();
   const navigate = useNavigate();
 
@@ -120,6 +120,13 @@ const OrderTracking = () => {
 
     if (orderError || !orderData) {
       toast.error("Order not found");
+      navigate("/orders");
+      return;
+    }
+
+    // Security check: Ensure user owns this order (RLS also handles this)
+    if (orderData.user_id !== user?.id && !isAdmin) {
+      toast.error("You don't have permission to view this order");
       navigate("/orders");
       return;
     }
@@ -306,8 +313,8 @@ const OrderTracking = () => {
           {/* Estimated Delivery Time - Show for active orders */}
           {(order.status === "placed" || order.status === "packed" || order.status === "out_for_delivery") && (
             <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-              <DeliveryEstimate 
-                runnerId={order.runner_id} 
+              <DeliveryEstimate
+                runnerId={order.runner_id}
                 orderId={order.id}
                 showDetails={order.status === "out_for_delivery"}
               />

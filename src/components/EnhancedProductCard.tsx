@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { Plus, Minus, Heart, ShoppingBag, Check, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 interface ProductImage {
@@ -37,6 +39,8 @@ export function EnhancedProductCard({
 }: EnhancedProductCardProps) {
   const { addToCart, updateQuantity, getItemQuantity } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [isAdding, setIsAdding] = useState(false);
   const [showAddedFeedback, setShowAddedFeedback] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -48,7 +52,7 @@ export function EnhancedProductCard({
   const isLowStock = product.stock <= 3 && product.stock > 0;
 
   // Get primary image
-  const images = product.images.map(img => 
+  const images = product.images.map(img =>
     typeof img === "string" ? img : img.image_url
   );
   const primaryImage = images[0] || "/placeholder.svg";
@@ -63,6 +67,10 @@ export function EnhancedProductCard({
 
     if (info.offset.x > 80 && info.velocity.x > 0) {
       // Swipe right - add to cart
+      if (!user) {
+        navigate("/auth?mode=signin");
+        return;
+      }
       handleQuickAdd();
     } else if (info.offset.x < -80 && info.velocity.x < 0) {
       // Swipe left - toggle favorite
@@ -71,10 +79,14 @@ export function EnhancedProductCard({
   };
 
   const handleQuickAdd = () => {
+    if (!user) {
+      navigate("/auth?mode=signin");
+      return;
+    }
     if (isOutOfStock || quantity >= product.stock) return;
 
     setIsAdding(true);
-    
+
     // Haptic feedback
     if (navigator.vibrate) {
       navigator.vibrate([10, 50, 10]);
@@ -109,9 +121,9 @@ export function EnhancedProductCard({
 
   const handleImageNav = (direction: "prev" | "next") => {
     if (images.length <= 1) return;
-    setCurrentImageIndex(prev => 
-      direction === "next" 
-        ? (prev + 1) % images.length 
+    setCurrentImageIndex(prev =>
+      direction === "next"
+        ? (prev + 1) % images.length
         : (prev - 1 + images.length) % images.length
     );
   };
@@ -134,7 +146,7 @@ export function EnhancedProductCard({
             </div>
           )}
         </div>
-        
+
         <div className="flex-1 min-w-0">
           <h4 className="font-medium truncate">{product.name}</h4>
           <p className="text-lg font-bold text-primary">₹{product.price}</p>
@@ -172,7 +184,7 @@ export function EnhancedProductCard({
             </div>
           )}
         </div>
-        
+
         <div className="flex-1 flex flex-col justify-between">
           <div>
             <h4 className="font-semibold line-clamp-2">{product.name}</h4>
@@ -183,7 +195,7 @@ export function EnhancedProductCard({
               </div>
             )}
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div>
               <span className="text-xl font-bold text-primary">₹{product.price}</span>
@@ -191,7 +203,7 @@ export function EnhancedProductCard({
                 <span className="ml-2 text-sm line-through text-muted-foreground">₹{product.originalPrice}</span>
               )}
             </div>
-            
+
             {quantity > 0 ? (
               <div className="flex items-center gap-2">
                 <motion.button
@@ -449,7 +461,7 @@ export function EnhancedProductCard({
                 ) : (
                   <>
                     <Plus size={18} />
-                    {isOutOfStock ? "Out of Stock" : "Add to Cart"}
+                    {isOutOfStock ? "Out of Stock" : (!user ? "Sign in to Buy" : "Add to Cart")}
                   </>
                 )}
               </motion.button>

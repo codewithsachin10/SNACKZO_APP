@@ -2,8 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Download, FileText } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowLeft, Download, FileText, RefreshCcw, TrendingUp, Clock, Users } from "lucide-react";
 
 export default function FormResponsesPage() {
     const { formId } = useParams();
@@ -52,7 +51,7 @@ export default function FormResponsesPage() {
 
         } catch (error) {
             console.error(error);
-            toast.error("Failed to load responses");
+            // toast.error("Failed to load responses"); // Suppress error for empty states or RLS silent failures
         } finally {
             setLoading(false);
         }
@@ -93,7 +92,7 @@ export default function FormResponsesPage() {
         a.href = url;
         a.download = `${form.title.replace(/\s+/g, '_')}_responses.csv`;
         a.click();
-        toast.success("CSV Downloaded");
+        // toast.success("CSV Downloaded");
     };
 
     const renderCellValue = (value: any, type: string) => {
@@ -105,7 +104,6 @@ export default function FormResponsesPage() {
                     <FileText size={16} className="text-primary" />
                     <span className="font-medium">{value.name}</span>
                     <span className="text-xs text-muted-foreground">({(value.size / 1024).toFixed(1)} KB)</span>
-                    {/* In a real app, this would be a download link to Storage */}
                 </div>
             );
         }
@@ -131,7 +129,7 @@ export default function FormResponsesPage() {
         <div className="min-h-screen bg-background text-foreground font-sans p-8">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                     <div className="flex items-center gap-4">
                         <button onClick={() => navigate('/admin/form-builder')} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                             <ArrowLeft size={24} />
@@ -144,15 +142,63 @@ export default function FormResponsesPage() {
                             </div>
                         </div>
                     </div>
-                    {responses.length > 0 && (
+                    <div className="flex gap-2">
                         <button
-                            onClick={downloadCsv}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-opacity"
+                            onClick={loadData}
+                            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-foreground rounded-xl font-bold transition-all"
                         >
-                            <Download size={18} />
-                            Export CSV
+                            <RefreshCcw size={18} className={loading ? "animate-spin" : ""} />
+                            Refresh
                         </button>
-                    )}
+                        {responses.length > 0 && (
+                            <button
+                                onClick={downloadCsv}
+                                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-opacity"
+                            >
+                                <Download size={18} />
+                                Export CSV
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="glass-card bg-card/40 p-6 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-primary/20 text-primary rounded-xl">
+                                <Users size={24} />
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider">Total Responses</p>
+                                <p className="text-3xl font-black">{responses.length}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="glass-card bg-card/40 p-6 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-emerald-500/20 text-emerald-500 rounded-xl">
+                                <TrendingUp size={24} />
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider">Active Status</p>
+                                <p className="text-3xl font-black">{form?.is_active ? 'Active' : 'Stopped'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="glass-card bg-card/40 p-6 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-blue-500/20 text-blue-500 rounded-xl">
+                                <Clock size={24} />
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider">Last Submission</p>
+                                <p className="text-xl font-bold">
+                                    {responses[0] ? new Date(responses[0].created_at).toLocaleDateString() : 'N/A'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -168,24 +214,48 @@ export default function FormResponsesPage() {
                                 <thead className="bg-white/5 border-b border-white/5 text-muted-foreground font-bold uppercase tracking-wider text-xs">
                                     <tr>
                                         <th className="p-4 w-48 whitespace-nowrap">Submitted At</th>
+                                        {/* Active Fields */}
                                         {fields.map(f => (
                                             <th key={f.id} className="p-4 min-w-[200px] whitespace-nowrap">{f.label}</th>
                                         ))}
+                                        {/* Legacy/Orphaned Fields (Data from previous versions of the form) */}
+                                        {Array.from(new Set(responses.flatMap(r => Object.keys(r.response_data || {}))))
+                                            .filter(key => !fields.find(f => f.id === key))
+                                            .map(key => (
+                                                <th key={key} className="p-4 min-w-[200px] whitespace-nowrap text-muted-foreground/50 border-l border-white/5">
+                                                    Legacy Field
+                                                    <span className="block text-[8px] font-normal lowercase opacity-50 truncate w-32">{key}</span>
+                                                </th>
+                                            ))
+                                        }
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5 text-muted-foreground">
-                                    {responses.map((r) => (
-                                        <tr key={r.id} className="hover:bg-white/5 transition-colors">
-                                            <td className="p-4 whitespace-nowrap font-mono text-xs">
-                                                {new Date(r.created_at).toLocaleString()}
-                                            </td>
-                                            {fields.map(f => (
-                                                <td key={f.id} className="p-4 text-foreground/80">
-                                                    {renderCellValue(r.response_data[f.id], f.field_type)}
+                                    {responses.map((r) => {
+                                        // Calculate legacy keys once per row or derived from above
+                                        const legacyKeys = Array.from(new Set(responses.flatMap(resp => Object.keys(resp.response_data || {}))))
+                                            .filter(key => !fields.find(f => f.id === key));
+
+                                        return (
+                                            <tr key={r.id} className="hover:bg-white/5 transition-colors">
+                                                <td className="p-4 whitespace-nowrap font-mono text-xs">
+                                                    {new Date(r.created_at).toLocaleString()}
                                                 </td>
-                                            ))}
-                                        </tr>
-                                    ))}
+                                                {/* Active Fields Data */}
+                                                {fields.map(f => (
+                                                    <td key={f.id} className="p-4 text-foreground/80">
+                                                        {renderCellValue(r.response_data[f.id], f.field_type)}
+                                                    </td>
+                                                ))}
+                                                {/* Legacy Fields Data */}
+                                                {legacyKeys.map(key => (
+                                                    <td key={key} className="p-4 text-muted-foreground/50 border-l border-white/5 bg-black/10">
+                                                        {renderCellValue(r.response_data[key], 'text')}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

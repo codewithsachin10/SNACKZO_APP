@@ -721,12 +721,12 @@ const SnackzoAI = () => {
                             opacity: 1,
                             y: 0,
                             scale: 1,
-                            height: isMinimized ? 70 : 600
+                            height: isMinimized ? 80 : 600
                         }}
                         exit={{ opacity: 0, y: 20, scale: 0.95 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                         className="fixed bottom-24 right-6 z-50 w-[420px] max-w-[calc(100vw-48px)] bg-card border border-white/10 rounded-[2rem] shadow-2xl shadow-black/40 overflow-hidden flex flex-col"
-                        style={{ maxHeight: isMinimized ? 70 : 'calc(100vh-200px)' }}
+                        style={{ maxHeight: isMinimized ? 80 : 'calc(100vh-200px)' }}
                     >
                         {/* Header */}
                         <div className="bg-gradient-to-r from-primary via-purple-600 to-secondary p-4 relative overflow-hidden flex-shrink-0">
@@ -761,14 +761,6 @@ const SnackzoAI = () => {
                                         className="text-white/60 hover:text-white hover:bg-white/10 w-8 h-8"
                                     >
                                         {isSoundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => setIsMinimized(!isMinimized)}
-                                        className="text-white/60 hover:text-white hover:bg-white/10 w-8 h-8"
-                                    >
-                                        {isMinimized ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
                                     </Button>
                                     <Button
                                         variant="ghost"

@@ -2,6 +2,7 @@ import { Plus, Minus, Heart, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { ExpressDeliveryBadge } from "@/components/ExpressDeliveryBadge";
 
 interface ProductCardProps {
@@ -32,6 +33,7 @@ const ProductCard = ({
   const navigate = useNavigate();
   const { addToCart, updateQuantity, getItemQuantity } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { user } = useAuth();
   const quantity = getItemQuantity(id);
   const favorited = isFavorite(id);
 
@@ -52,6 +54,10 @@ const ProductCard = ({
     if (groupId) {
       navigate(`/products/${id}?group=${groupId}`);
     } else {
+      if (!user) {
+        navigate("/auth?mode=signin");
+        return;
+      }
       if (!isOutOfStock && quantity < stock) {
         addToCart({ id, name, price, image, stock });
       }
@@ -174,7 +180,7 @@ const ProductCard = ({
                 : "neon-btn bg-primary hover:bg-primary/90 text-primary-foreground"
                 }`}
             >
-              {isOutOfStock ? "Sold Out" : "Add to Cart"}
+              {isOutOfStock ? "Sold Out" : (!user ? "Sign in to Buy" : "Add to Cart")}
             </button>
           ) : (
             <div className="flex items-center gap-2 w-full">

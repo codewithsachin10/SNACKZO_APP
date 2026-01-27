@@ -3,8 +3,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 // import { FeatureProvider } from "@/contexts/FeatureContext"; // Temporarily disabled
@@ -55,6 +56,70 @@ import { BottomNavigation } from "@/components/ui/BottomNavigation";
 
 const queryClient = new QueryClient();
 
+const AppRoutes = () => {
+  const location = useLocation();
+  const { user } = useAuth();
+  // Hide global navigation and chat widgets on public form viewer pages
+  const isPublicForm = location.pathname.startsWith('/forms/');
+
+  return (
+    <>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/complete-profile" element={<CompleteProfile />} />
+        <Route path="/profile" element={<UserProfile />} />
+        <Route path="/products" element={<Products />} />
+        <Route path="/products/:productId" element={<ProductDetail />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/orders" element={<Orders />} />
+        <Route path="/orders/:orderId" element={<PremiumOrderTracking />} />
+        <Route path="/receipt/:orderId" element={<Receipt />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/form-builder" element={<FormBuilderPage />} />
+        <Route path="/forms/:formId" element={<FormViewerPage />} />
+        <Route path="/admin/forms/:formId/responses" element={<FormResponsesPage />} />
+        <Route path="/runner" element={<RunnerDashboard />} />
+        <Route path="/wallet" element={<Wallet />} />
+        <Route path="/favorites" element={<Favorites />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/privacy-security" element={<PrivacySecurity />} />
+        <Route path="/settings/notifications" element={<NotificationSettings />} />
+        <Route path="/payment-methods" element={<PaymentMethods />} />
+        <Route path="/support" element={<Support />} />
+        <Route path="/feedback" element={<Feedback />} />
+        {/* New Feature Routes */}
+        <Route path="/group-order" element={<GroupOrdering />} />
+        <Route path="/group-order/:groupId" element={<GroupOrdering />} />
+        <Route path="/subscriptions" element={<Subscriptions />} />
+        <Route path="/achievements" element={<Achievements />} />
+        <Route path="/group-checkout/:groupId" element={<GroupCheckout />} />
+        <Route path="/messages" element={<Messages />} />
+        {/* Premium Feature Routes - Temporarily disabled
+          <Route path="/spin" element={<SpinWheelPage />} />
+          <Route path="/flash-deals" element={<FlashDealsPage />} />
+          */}
+        {/* SnackzoPay Gateway */}
+        <Route path="/pay" element={<SnackzoPayGateway />} />
+        <Route path="/pay/confirm" element={<SnackzoPayConfirm />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+
+      {/* Global AI Chatbot & Navigation - Hidden on public forms */}
+      {!isPublicForm && (
+        <>
+          <SnackzoAI />
+          {user && <BottomNavigation />}
+          <LiveChat />
+        </>
+      )}
+    </>
+  );
+};
+
 const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
@@ -92,54 +157,7 @@ const App = () => {
                 <Sonner />
                 <SocialProofToast />
                 <BrowserRouter>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
-                    <Route path="/complete-profile" element={<CompleteProfile />} />
-                    <Route path="/profile" element={<UserProfile />} />
-                    <Route path="/products" element={<Products />} />
-                    <Route path="/products/:productId" element={<ProductDetail />} />
-                    <Route path="/checkout" element={<Checkout />} />
-                    <Route path="/orders" element={<Orders />} />
-                    <Route path="/orders/:orderId" element={<PremiumOrderTracking />} />
-                    <Route path="/receipt/:orderId" element={<Receipt />} />
-                    <Route path="/admin" element={<AdminDashboard />} />
-                    <Route path="/admin/form-builder" element={<FormBuilderPage />} />
-                    <Route path="/forms/:formId" element={<FormViewerPage />} />
-                    <Route path="/admin/forms/:formId/responses" element={<FormResponsesPage />} />
-                    <Route path="/runner" element={<RunnerDashboard />} />
-                    <Route path="/wallet" element={<Wallet />} />
-                    <Route path="/favorites" element={<Favorites />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/privacy-security" element={<PrivacySecurity />} />
-                    <Route path="/settings/notifications" element={<NotificationSettings />} />
-                    <Route path="/payment-methods" element={<PaymentMethods />} />
-                    <Route path="/support" element={<Support />} />
-                    <Route path="/feedback" element={<Feedback />} />
-                    {/* New Feature Routes */}
-                    <Route path="/group-order" element={<GroupOrdering />} />
-                    <Route path="/group-order/:groupId" element={<GroupOrdering />} />
-                    <Route path="/subscriptions" element={<Subscriptions />} />
-                    <Route path="/achievements" element={<Achievements />} />
-                    <Route path="/group-checkout/:groupId" element={<GroupCheckout />} />
-                    <Route path="/messages" element={<Messages />} />
-                    {/* Premium Feature Routes - Temporarily disabled
-                      <Route path="/spin" element={<SpinWheelPage />} />
-                      <Route path="/flash-deals" element={<FlashDealsPage />} />
-                      */}
-                    {/* SnackzoPay Gateway */}
-                    <Route path="/pay" element={<SnackzoPayGateway />} />
-                    <Route path="/pay/confirm" element={<SnackzoPayConfirm />} />
-                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                  {/* Global AI Chatbot */}
-                  <SnackzoAI />
-                  <BottomNavigation />
-                  {/* Premium Live Support */}
-                  <LiveChat />
+                  <AppRoutes />
                 </BrowserRouter>
               </CartProvider>
             </FavoritesProvider>
