@@ -2,16 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    CheckCircle, XCircle, Shield, Lock, CreditCard,
+    CheckCircle, XCircle, Shield, ShieldCheck, Lock, CreditCard,
     Zap, QrCode, AlertCircle, X, Copy,
     Building2, Wallet, ChevronRight, Check,
     Phone, RefreshCw, Loader2, Clock, LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type PaymentMethod = "upi" | "cards" | "netbanking" | "wallet";
-type PaymentStatus = "idle" | "processing" | "success" | "failed" | "redirecting";
+type PaymentStatus = "idle" | "simulating" | "processing" | "success" | "failed" | "redirecting";
 
 const generateTxnId = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -86,6 +87,7 @@ const AxisIcon = () => (
 const SnackzoPayGateway = () => {
     const [searchParams] = useSearchParams();
 
+    // ... (params)
     const amount = parseFloat(searchParams.get("amount") || "499");
     const orderId = searchParams.get("orderId") || "order_" + Date.now();
     const returnUrl = searchParams.get("returnUrl") || "/";
@@ -94,17 +96,24 @@ const SnackzoPayGateway = () => {
 
     const [method, setMethod] = useState<PaymentMethod>("upi");
     const [status, setStatus] = useState<PaymentStatus>("idle");
-    const [showTestModal, setShowTestModal] = useState(false);
-    const [showExitModal, setShowExitModal] = useState(false);
+    const [showExitModal, setShowExitModal] = useState(false); // Removed showTestModal
     const [countdown, setCountdown] = useState(600);
     const [upiId, setUpiId] = useState("");
     const [transactionId, setTransactionId] = useState("");
     const [redirectCountdown, setRedirectCountdown] = useState(3);
     const [sessionId, setSessionId] = useState<string>("");
 
+    // Helper to start the Full Page Simulation
+    const startSimulation = () => {
+        setStatus("simulating");
+    };
+
+
+
     const paymentUrl = sessionId
         ? `${window.location.origin}/pay/confirm?amount=${amount}&orderId=${orderId}&sessionId=${sessionId}&returnUrl=${encodeURIComponent(returnUrl)}`
         : "";
+    // ...
 
     const qrCodeUrl = paymentUrl
         ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(paymentUrl)}&format=png&margin=8`
@@ -127,29 +136,37 @@ const SnackzoPayGateway = () => {
         return () => clearInterval(interval);
     }, [status]);
 
+    const customerName = searchParams.get("customerName");
+
     // Create a payment session on mount
     useEffect(() => {
         const createSession = async () => {
             try {
+                // Get User
+                const { data: { user } } = await supabase.auth.getUser();
+
                 // Insert a new pending payment session
                 const { data, error } = await supabase
                     .from("payment_sessions")
                     .insert({
                         order_id: orderId,
                         amount: amount,
-                        status: "pending"
+                        status: "pending",
+                        user_id: user?.id || null, // Link User
+                        guest_name: customerName ? decodeURIComponent(customerName) : null
                     })
                     .select()
                     .single();
 
                 if (error) {
                     console.error("Error creating payment session:", error);
-                    // FALLBACK: Permission denied or other DB error
+                    toast.error(`DB Error: ${error.message}`); // Show visible error
                     setSessionId("offline_" + Date.now());
                     return;
                 }
 
                 if (data) {
+                    console.log("Session Created:", data);
                     setSessionId(data.id);
                     // Subscribe to changes for this specific session
                     const channel = supabase
@@ -211,8 +228,22 @@ const SnackzoPayGateway = () => {
     const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
     const processPayment = async (success: boolean) => {
-        setShowTestModal(false);
+        // setShowTestModal(false);
         setStatus("processing");
+
+        // Update Database IMMEDIATELY
+        if (sessionId && !sessionId.startsWith("offline_")) {
+            const statusToSet = success ? "success" : "failed";
+            console.log(`Updating DB Session ${sessionId} to ${statusToSet}`);
+
+            // Use RPC to bypass RLS
+            await supabase.rpc('complete_payment_session', {
+                p_session_id: sessionId,
+                p_status: statusToSet,
+                p_method: method // Send the selected method (upi, cards, etc.)
+            });
+        }
+
         await new Promise(r => setTimeout(r, 2000));
 
         if (success) {
@@ -392,7 +423,7 @@ const SnackzoPayGateway = () => {
 
                                                             <div className="flex gap-4 mt-2">
                                                                 {upiApps.map(app => (
-                                                                    <button key={app.id} onClick={() => setShowTestModal(true)} className="w-10 h-10 rounded-xl overflow-hidden shadow-lg hover:scale-110 transition-transform hover:shadow-purple-500/50">
+                                                                    <button key={app.id} onClick={startSimulation} className="w-10 h-10 rounded-xl overflow-hidden shadow-lg hover:scale-110 transition-transform hover:shadow-purple-500/50">
                                                                         <app.Icon />
                                                                     </button>
                                                                 ))}
@@ -404,7 +435,7 @@ const SnackzoPayGateway = () => {
                                                         <h3 className="text-sm font-medium text-slate-300 mb-2">Recommended</h3>
                                                         <div className="space-y-2">
                                                             {upiApps.slice(0, 2).map(app => (
-                                                                <button key={app.id} onClick={() => setShowTestModal(true)} className="w-full p-3 border border-slate-700 rounded-lg hover:border-purple-500/50 hover:bg-slate-800/50 transition-all flex items-center gap-3 group">
+                                                                <button key={app.id} onClick={startSimulation} className="w-full p-3 border border-slate-700 rounded-lg hover:border-purple-500/50 hover:bg-slate-800/50 transition-all flex items-center gap-3 group">
                                                                     <div className="w-8 h-8 rounded-md overflow-hidden shadow">
                                                                         <app.Icon />
                                                                     </div>
@@ -419,7 +450,7 @@ const SnackzoPayGateway = () => {
                                                         <h3 className="text-sm font-medium text-slate-300 mb-2">Or enter UPI ID</h3>
                                                         <div className="flex gap-2">
                                                             <input type="text" value={upiId} onChange={e => setUpiId(e.target.value)} placeholder="yourname@upi" className="flex-1 px-3 py-2.5 border border-slate-700 rounded-lg bg-slate-800 text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none text-sm" />
-                                                            <button onClick={() => setShowTestModal(true)} className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium text-sm transition-colors">Pay</button>
+                                                            <button onClick={startSimulation} className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium text-sm transition-colors">Pay</button>
                                                         </div>
                                                     </div>
                                                 </motion.div>
@@ -434,7 +465,7 @@ const SnackzoPayGateway = () => {
                                                         <input type="password" placeholder="CVV" className="px-3 py-3 border border-slate-700 rounded-lg bg-slate-800 text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none text-sm font-mono" />
                                                     </div>
                                                     <input type="text" placeholder="Name on Card" className="w-full px-3 py-3 border border-slate-700 rounded-lg bg-slate-800 text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none text-sm" />
-                                                    <button onClick={() => setShowTestModal(true)} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors">
+                                                    <button onClick={startSimulation} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors">
                                                         <Lock size={16} /> Pay ₹{amount.toLocaleString("en-IN")}
                                                     </button>
                                                 </motion.div>
@@ -444,7 +475,7 @@ const SnackzoPayGateway = () => {
                                                 <motion.div key="netbanking" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-3">
                                                     <h3 className="text-sm font-medium text-slate-300">Select Bank</h3>
                                                     {banks.map(bank => (
-                                                        <button key={bank.id} onClick={() => setShowTestModal(true)} className="w-full p-3 border border-slate-700 rounded-lg hover:border-purple-500/50 hover:bg-slate-800/50 transition-all flex items-center gap-3 group">
+                                                        <button key={bank.id} onClick={startSimulation} className="w-full p-3 border border-slate-700 rounded-lg hover:border-purple-500/50 hover:bg-slate-800/50 transition-all flex items-center gap-3 group">
                                                             <div className="w-8 h-8 rounded-md overflow-hidden shadow">
                                                                 <bank.Icon />
                                                             </div>
@@ -462,7 +493,7 @@ const SnackzoPayGateway = () => {
                                                     </div>
                                                     <h3 className="font-bold text-lg text-white">Snackzo Wallet</h3>
                                                     <p className="text-slate-400 text-sm">Balance: ₹500.00</p>
-                                                    <button onClick={() => setShowTestModal(true)} className="w-full mt-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-semibold transition-colors">
+                                                    <button onClick={startSimulation} className="w-full mt-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-semibold transition-colors">
                                                         Pay ₹{amount.toLocaleString("en-IN")}
                                                     </button>
                                                 </motion.div>
@@ -471,6 +502,85 @@ const SnackzoPayGateway = () => {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* ===== NEW FULL SCREEN SIMULATOR ===== */}
+                {status === "simulating" && (
+                    <motion.div
+                        key="simulator"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden relative"
+                    >
+                        {/* Simulation Header */}
+                        <div className="bg-slate-900 p-4 flex items-center justify-between text-white">
+                            <div className="flex items-center gap-2">
+                                <ShieldCheck size={18} className="text-green-400" />
+                                <span className="text-sm font-medium">Secure Payment Gateway</span>
+                            </div>
+                            <div className="flex gap-1">
+                                <div className="w-2 h-2 rounded-full bg-red-500" />
+                                <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                                <div className="w-2 h-2 rounded-full bg-green-500" />
+                            </div>
+                        </div>
+
+                        {/* Simulation Body */}
+                        <div className="p-8 flex flex-col items-center justify-center min-h-[400px]">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.5 }}
+                                className="w-full flex flex-col items-center"
+                            >
+                                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6 relative">
+                                    <div className="absolute inset-0 border-4 border-slate-200 rounded-full" />
+                                    <motion.div
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                                        className="absolute inset-0 border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent rounded-full"
+                                    />
+                                    <Lock size={32} className="text-slate-400" />
+                                </div>
+
+                                <h3 className="text-xl font-bold text-slate-800 mb-2">Connecting to Bank...</h3>
+                                <p className="text-slate-500 text-center text-sm mb-8">
+                                    Please do not close this window or press back button.
+                                </p>
+
+                                {/* SIMULATION CONTROLS */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 2 }} // Show controls after 2 seconds
+                                    className="w-full space-y-3"
+                                >
+                                    <div className="relative">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <div className="w-full border-t border-slate-200" />
+                                        </div>
+                                        <div className="relative flex justify-center text-xs uppercase">
+                                            <span className="bg-white px-2 text-slate-400">Simulator Actions</span>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => processPayment(true)}
+                                        className="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold shadow-lg shadow-green-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                                    >
+                                        <CheckCircle size={20} /> Authorize Payment (Success)
+                                    </button>
+
+                                    <button
+                                        onClick={() => processPayment(false)}
+                                        className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                                    >
+                                        <XCircle size={20} /> Decline Transaction (Fail)
+                                    </button>
+                                </motion.div>
+                            </motion.div>
                         </div>
                     </motion.div>
                 )}
@@ -648,32 +758,6 @@ const SnackzoPayGateway = () => {
                                 <button onClick={cancel} className="flex-1 py-3 border border-slate-700 text-slate-400 rounded-lg font-medium">Cancel</button>
                             </div>
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Test Modal (Keep existing) */}
-            <AnimatePresence>
-                {showTestModal && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowTestModal(false)}>
-                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} onClick={e => e.stopPropagation()} className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-xs w-full">
-                            <div className="text-center mb-6">
-                                <div className="w-14 h-14 mx-auto bg-yellow-500/20 rounded-2xl flex items-center justify-center mb-3">
-                                    <AlertCircle size={28} className="text-yellow-400" />
-                                </div>
-                                <h3 className="font-bold text-lg text-white">Test Mode</h3>
-                                <p className="text-sm text-slate-400 mt-1">Choose outcome:</p>
-                            </div>
-                            <div className="space-y-2">
-                                <button onClick={() => processPayment(true)} className="w-full py-3.5 bg-green-600 hover:bg-green-500 text-white rounded-xl font-medium flex items-center justify-center gap-2">
-                                    <CheckCircle size={20} /> Success
-                                </button>
-                                <button onClick={() => processPayment(false)} className="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium flex items-center justify-center gap-2">
-                                    <XCircle size={20} /> Failure
-                                </button>
-                            </div>
-                            <button onClick={() => setShowTestModal(false)} className="w-full mt-4 py-2 text-slate-500 text-sm">Cancel</button>
-                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>

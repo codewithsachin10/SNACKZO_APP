@@ -11,6 +11,7 @@ interface EmailRequest {
     html: string;
     message?: string; // Support legacy simplified message
     from?: string;
+    attachments?: { filename: string; content: string }[];
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -20,7 +21,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     try {
-        const { to, subject, html, message, from } = await req.json() as EmailRequest;
+        const { to, subject, html, message, from, attachments } = await req.json() as EmailRequest;
 
         // 1. Try to get key from Supabase Secrets (Best Practice)
         let resendKey = Deno.env.get("RESEND_API_KEY") || Deno.env.get("VITE_RESEND_API_KEY");
@@ -48,6 +49,7 @@ const handler = async (req: Request): Promise<Response> => {
                 to: Array.isArray(to) ? to : [to],
                 subject,
                 html: emailHtml,
+                attachments, // Pass attachments array
             }),
         });
 

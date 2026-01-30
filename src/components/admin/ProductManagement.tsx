@@ -9,6 +9,10 @@ import {
   DollarSign,
   Package,
   ImageIcon,
+  Upload,
+  Folder,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
 
 interface Product {
@@ -47,6 +51,25 @@ const ProductManagement = () => {
     stock: "",
   });
 
+  const PRESET_IMAGES = [
+    "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80", // Burger
+    "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80", // Pizza
+    "https://images.unsplash.com/photo-1574126154517-d1bd7269f15e?auto=format&fit=crop&w=800&q=80", // Pepperoni
+    "https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80", // Burger 2
+    "https://images.unsplash.com/photo-1561758033-d89a9ad46330?auto=format&fit=crop&w=800&q=80", // Burger 3
+    "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=800&q=80", // Club Sandwich
+    "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=80", // Cocktail
+    "https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=800&q=80", // Iced Tea
+    "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=800&q=80", // Choco Donut
+    "https://images.unsplash.com/photo-1630384060440-61cb3c40460c?auto=format&fit=crop&w=800&q=80", // Biryani
+    "https://images.unsplash.com/photo-1554866572-c6326c710dbf?auto=format&fit=crop&w=800&q=80", // Fries
+    "https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&w=800&q=80", // Dumplings/Momos
+    "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=800&q=80", // Fried Chicken
+    "https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&w=800&q=80", // Coffee
+    "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=800&q=80"  // Cake
+  ];
+
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -72,6 +95,46 @@ const ProductManagement = () => {
       ),
     [products, searchQuery]
   );
+
+  // Image Handling
+  const [imageTab, setImageTab] = useState<'url' | 'upload' | 'library' | 'presets'>('url');
+  const [isUploading, setIsUploading] = useState(false);
+  const [libraryImages, setLibraryImages] = useState<{ name: string, url: string }[]>([]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+    setIsUploading(true);
+    const { error: uploadError } = await supabase.storage
+      .from('products')
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error(uploadError);
+      toast.error('Upload failed: ' + uploadError.message);
+      setIsUploading(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from('products').getPublicUrl(fileName);
+    setFormData({ ...formData, image_url: data.publicUrl });
+    setIsUploading(false);
+    toast.success('Image uploaded!');
+  };
+
+  const fetchLibrary = async () => {
+    const { data, error } = await supabase.storage.from('products').list();
+    if (data) {
+      const images = data.map(file => {
+        const { data: urlData } = supabase.storage.from('products').getPublicUrl(file.name);
+        return { name: file.name, url: urlData.publicUrl };
+      });
+      setLibraryImages(images);
+    }
+  };
 
   const handleOpenForm = (product?: Product) => {
     if (product) {
@@ -360,15 +423,131 @@ const ProductManagement = () => {
                 />
               </div>
 
-              <div>
-                <label className="text-sm font-medium">Image URL</label>
-                <input
-                  type="text"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  className="w-full glass-card p-2 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="https://..."
-                />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Product Image</label>
+                  <div className="flex bg-muted/50 rounded-lg p-0.5 gap-0.5">
+                    <button
+                      onClick={() => setImageTab('url')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${imageTab === 'url' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
+                    >URL</button>
+                    <button
+                      onClick={() => setImageTab('upload')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${imageTab === 'upload' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
+                    ><Upload size={12} /> Upload</button>
+                    <button
+                      onClick={() => { setImageTab('library'); fetchLibrary(); }}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${imageTab === 'library' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
+                    ><Folder size={12} /> Library</button>
+                    <button
+                      onClick={() => setImageTab('presets')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${imageTab === 'presets' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
+                    ><Sparkles size={12} className="text-purple-500" /> Stock</button>
+                  </div>
+                </div>
+
+                {imageTab === 'url' && (
+                  <input
+                    type="text"
+                    value={formData.image_url}
+                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                    className="w-full glass-card p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground/50"
+                    placeholder="https://example.com/image.jpg"
+                  />
+                )}
+
+                {imageTab === 'upload' && (
+                  <div className="border border-dashed border-input rounded-xl p-6 text-center hover:bg-muted/30 transition-colors relative group cursor-pointer bg-muted/5">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="flex flex-col items-center gap-2 transition-transform group-hover:scale-105">
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="animate-spin text-primary" size={24} />
+                          <span className="text-xs font-medium text-muted-foreground">Uploading image...</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-3 bg-background rounded-full shadow-sm">
+                            <Upload className="text-primary" size={20} />
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-xs font-medium">Click to upload</p>
+                            <p className="text-[10px] text-muted-foreground">SVG, PNG, JPG or GIF</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {imageTab === 'library' && (
+                  <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1 p-1 bg-muted/10 rounded-xl border border-border/50">
+                    {libraryImages.length === 0 ? (
+                      <div className="col-span-3 flex flex-col items-center justify-center py-8 text-muted-foreground">
+                        <ImageIcon size={24} className="mb-2 opacity-20" />
+                        <p className="text-xs">No images found in library.</p>
+                      </div>
+                    ) : (
+                      libraryImages.map((img) => (
+                        <button
+                          key={img.name}
+                          onClick={() => setFormData({ ...formData, image_url: img.url })}
+                          className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all group ${formData.image_url === img.url ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-primary/50 bg-background'}`}
+                        >
+                          <img src={img.url} className="w-full h-full object-cover" loading="lazy" alt="Library asset" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {imageTab === 'presets' && (
+                  <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1 p-1 bg-muted/10 rounded-xl border border-border/50 scrollbar-thin">
+                    {PRESET_IMAGES.map((url, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setFormData({ ...formData, image_url: url })}
+                        className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all group ${formData.image_url === url ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-primary/50 bg-background'}`}
+                      >
+                        <img src={url} className="w-full h-full object-cover" loading="lazy" alt={`Stock ${idx}`} />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                        {formData.image_url === url && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-primary/20 backdrop-blur-[1px]">
+                            <div className="bg-primary text-primary-foreground p-1 rounded-full shadow-lg">
+                              <Sparkles size={12} fill="currentColor" />
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Preview Selected */}
+                {formData.image_url && (
+                  <div className="relative mt-2 rounded-xl overflow-hidden border border-border h-32 group bg-dots">
+                    <img src={formData.image_url} className="w-full h-full object-cover" alt="Preview" />
+                    <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all flex items-start justify-end p-2 opacity-0 hover:opacity-100">
+                      <button
+                        onClick={() => setFormData({ ...formData, image_url: "" })}
+                        className="bg-destructive text-destructive-foreground p-1.5 rounded-lg shadow-lg hover:bg-destructive/90 transition-colors"
+                        title="Remove Image"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-[10px] text-white font-medium">
+                      Preview
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

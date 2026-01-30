@@ -45,18 +45,25 @@ const SnackzoPayConfirm = () => {
             if (sessionId && !sessionId.startsWith("offline_")) {
                 try {
                     console.log("Updating session:", sessionId);
-                    const { error } = await supabase
-                        .from("payment_sessions")
-                        .update({
-                            status: "success",
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq("id", sessionId);
+
+                    // Try Secure RPC first (Bypasses RLS)
+                    const { error } = await supabase.rpc('complete_payment_session', {
+                        p_session_id: sessionId,
+                        p_status: 'success'
+                    });
 
                     if (error) {
-                        console.error("Supabase update error:", error);
+                        console.error("RPC failed, trying direct update:", error);
+                        // Fallback to direct update
+                        await supabase
+                            .from("payment_sessions")
+                            .update({
+                                status: "success",
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq("id", sessionId);
                     } else {
-                        console.log("Supabase update success");
+                        console.log("Supabase update success via RPC");
                     }
                 } catch (err) {
                     console.error("Payment update failed:", err);
@@ -65,10 +72,10 @@ const SnackzoPayConfirm = () => {
             setStatus("success");
         } else {
             if (sessionId && !sessionId.startsWith("offline_")) {
-                await supabase
-                    .from("payment_sessions")
-                    .update({ status: "failed", updated_at: new Date().toISOString() })
-                    .eq("id", sessionId);
+                await supabase.rpc('complete_payment_session', {
+                    p_session_id: sessionId,
+                    p_status: 'failed'
+                });
             }
             setStatus("failed");
         }

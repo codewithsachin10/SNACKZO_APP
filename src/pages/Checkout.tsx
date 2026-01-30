@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
-// import { useFeatures } from "@/contexts/FeatureContext"; // Temporarily disabled
+import { useFeatures } from "@/contexts/FeatureContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, MapPin, CreditCard, Truck, QrCode, Wallet, Tag, X, Check, Coins, Clock, Zap, Shield, Smartphone, Building2 } from "lucide-react";
@@ -10,7 +10,7 @@ import { ExpressDeliveryBadge, ExpressDeliveryInfo } from "@/components/ExpressD
 import { PaymentMethodSelector } from "@/components/PaymentMethodSelector";
 import { SavedPaymentMethods } from "@/components/SavedPaymentMethods";
 import { BNPLSelector } from "@/components/BNPLSelector";
-import { notifyOrderConfirmed, sendOrderReceiptEmail, sendOrderConfirmationEmail } from "@/utils/notificationService";
+import { notifyOrderConfirmed, sendOrderReceiptEmail, sendOrderPlacedEmail, sendPaymentSuccessEmail } from "@/utils/notificationService";
 import OrderCelebration from "@/components/ui/OrderCelebration";
 import AddressSelectorModal from "@/components/AddressSelectorModal";
 
@@ -34,8 +34,7 @@ interface Discount {
 const Checkout = () => {
   const { user, profile, isLoading } = useAuth();
   const { items, subtotal, clearCart } = useCart();
-  // Feature flags - default to enabled since FeatureProvider is disabled
-  const isFeatureEnabled = (feature: string) => true;
+  const { isFeatureEnabled } = useFeatures(); // Real feature flags
   const navigate = useNavigate();
 
   const [searchParams] = useSearchParams();
@@ -435,8 +434,8 @@ const Checkout = () => {
       // Update discount usage if applied
       if (appliedDiscount) {
         await supabase
-          .from("discounts" as any)
-          .update({ used_count: appliedDiscount.used_count + 1 })
+          .from("promo_codes")
+          .update({ usage_count: appliedDiscount.used_count + 1 })
           .eq("id", appliedDiscount.id);
       }
 
@@ -556,16 +555,32 @@ const Checkout = () => {
         if (user.email) {
           const userName = profile?.full_name || user.email.split('@')[0];
 
-          // 1. Send Order Confirmation (Focus on "Food is Coming")
-          await sendOrderConfirmationEmail(user.email, order.id, userName);
-
-          // 2. Send Digital Receipt (Focus on "The Bill")
-          await sendOrderReceiptEmail(user.email, {
-            orderId: order.id,
-            totalAmount: total,
-            userName: userName,
-            items: items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price }))
+          // 1. Send Order Placed Email (ALWAYS)
+          await sendOrderPlacedEmail(user.email, {
+            id: order.id,
+            items: items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+            subtotal: subtotal,
+            delivery_fee: deliveryFee,
+            total: total,
+            delivery_address: deliveryAddress,
+            userName: userName
           });
+
+          // 2. Send Payment Success Email (IF ONLINE PAYMENT SUCCESS)
+          if (paymentDetails?.transaction_id || paymentDetails?.payment_status === 'paid') {
+            await sendPaymentSuccessEmail(user.email, {
+              orderId: order.id,
+              amount: total,
+              method: dbPaymentMethod,
+              transactionId: paymentDetails?.transaction_id || `COD-${Date.now()}`,
+              userName: userName,
+              // Invoice Data:
+              items: items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+              subtotal: subtotal,
+              delivery_fee: deliveryFee,
+              delivery_address: deliveryAddress
+            });
+          }
         }
       } catch (notifErr) {
         console.error("Notification Error:", notifErr);
@@ -641,16 +656,18 @@ const Checkout = () => {
                 Delivery Mode
               </h2>
               <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => setDeliveryMode("room")}
-                  className={`neu-btn p-4 text-left ${deliveryMode === "room" ? "bg-primary text-primary-foreground" : "bg-background"}`}
-                >
-                  <span className="font-bold block">Doorstep Delivery</span>
-                  <span className="text-sm opacity-80">+₹10 • Right to your door</span>
-                </button>
+                {isFeatureEnabled('enable_delivery') && (
+                  <button
+                    onClick={() => setDeliveryMode("room")}
+                    className={`neu-btn p-4 text-left ${deliveryMode === "room" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                  >
+                    <span className="font-bold block">Doorstep Delivery</span>
+                    <span className="text-sm opacity-80">+₹10 • Right to your door</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setDeliveryMode("common_area")}
-                  className={`neu-btn p-4 text-left ${deliveryMode === "common_area" ? "bg-lime" : "bg-background"}`}
+                  className={`neu-btn p-4 text-left ${deliveryMode === "common_area" ? "bg-lime" : "bg-background"} ${!isFeatureEnabled('enable_delivery') ? 'col-span-2' : ''}`}
                 >
                   <span className="font-bold block">Self Pickup</span>
                   <span className="text-sm opacity-80">FREE • Pick up at store</span>
@@ -658,8 +675,8 @@ const Checkout = () => {
               </div>
             </div>
 
-            {/* Express Delivery Option */}
-            {subtotal >= expressDeliveryMinOrder && !isScheduled && (
+            {/* Express Delivery Option - Depend on delivery enabled */}
+            {isFeatureEnabled('enable_delivery') && subtotal >= expressDeliveryMinOrder && !isScheduled && (
               <div className="neu-card bg-card p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -849,7 +866,7 @@ const Checkout = () => {
             </div>
 
             {/* Wallet Balance */}
-            {walletBalance > 0 && (
+            {walletBalance > 0 && isFeatureEnabled('enable_wallet') && (
               <div className="neu-card bg-card p-6">
                 <h2 className="font-bold uppercase flex items-center gap-2 mb-4">
                   <Coins size={20} />
@@ -926,47 +943,49 @@ const Checkout = () => {
               {/* Grouped Payment Selection UI */}
               <div className="space-y-4">
                 {/* 1. SnackzoPay */}
-                <div className={`border-2 rounded-xl overflow-hidden transition-all ${gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) ? 'border-purple-500 bg-purple-500/5' : 'border-border bg-card'}`}>
-                  <button
-                    onClick={() => {
-                      setGateway('snackzo');
-                      setPaymentMethod('upi'); // Default sub-method
-                      setSelectedSavedMethod(null);
-                    }}
-                    className="w-full p-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-purple-500/10 text-purple-500 rounded-lg"><Zap size={20} /></div>
-                      <div className="text-left">
-                        <p className="font-bold">SnackzoPay</p>
-                        <p className="text-xs text-muted-foreground">Credit/Debit Card, UPI, Netbanking</p>
+                {isFeatureEnabled('snackzopay_gateway') && (
+                  <div className={`border-2 rounded-xl overflow-hidden transition-all ${gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) ? 'border-purple-500 bg-purple-500/5' : 'border-border bg-card'}`}>
+                    <button
+                      onClick={() => {
+                        setGateway('snackzo');
+                        setPaymentMethod('upi'); // Default sub-method
+                        setSelectedSavedMethod(null);
+                      }}
+                      className="w-full p-4 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-500/10 text-purple-500 rounded-lg"><Zap size={20} /></div>
+                        <div className="text-left">
+                          <p className="font-bold">SnackzoPay</p>
+                          <p className="text-xs text-muted-foreground">Credit/Debit Card, UPI, Netbanking</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) ? 'border-purple-500' : 'border-muted-foreground'}`}>
-                      {gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) && <div className="w-2.5 h-2.5 bg-purple-500 rounded-full" />}
-                    </div>
-                  </button>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) ? 'border-purple-500' : 'border-muted-foreground'}`}>
+                        {gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) && <div className="w-2.5 h-2.5 bg-purple-500 rounded-full" />}
+                      </div>
+                    </button>
 
-                  {/* Expanded Options */}
-                  {gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) && (
-                    <div className="px-4 pb-4 grid grid-cols-3 gap-2 animate-in slide-in-from-top-2">
-                      {[
-                        { id: 'upi', label: 'UPI', icon: Smartphone },
-                        { id: 'card', label: 'Card', icon: CreditCard },
-                        { id: 'netbanking', label: 'More', icon: Building2 }
-                      ].map(opt => (
-                        <button
-                          key={opt.id}
-                          onClick={() => setPaymentMethod(opt.id as any)}
-                          className={`p-3 rounded-lg border flex flex-col items-center gap-1 transition-all ${paymentMethod === opt.id ? 'bg-purple-500 text-white border-purple-500' : 'bg-background border-border hover:border-purple-500/50'}`}
-                        >
-                          <opt.icon size={16} />
-                          <span className="text-xs font-bold">{opt.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                    {/* Expanded Options */}
+                    {gateway === 'snackzo' && ['card', 'upi', 'netbanking'].includes(paymentMethod) && (
+                      <div className="px-4 pb-4 grid grid-cols-3 gap-2 animate-in slide-in-from-top-2">
+                        {[
+                          { id: 'upi', label: 'UPI', icon: Smartphone },
+                          { id: 'card', label: 'Card', icon: CreditCard },
+                          { id: 'netbanking', label: 'More', icon: Building2 }
+                        ].map(opt => (
+                          <button
+                            key={opt.id}
+                            onClick={() => setPaymentMethod(opt.id as any)}
+                            className={`p-3 rounded-lg border flex flex-col items-center gap-1 transition-all ${paymentMethod === opt.id ? 'bg-purple-500 text-white border-purple-500' : 'bg-background border-border hover:border-purple-500/50'}`}
+                          >
+                            <opt.icon size={16} />
+                            <span className="text-xs font-bold">{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* 2. Razorpay */}
                 <div className={`border-2 rounded-xl overflow-hidden transition-all ${gateway === 'razorpay' && ['card', 'upi', 'netbanking'].includes(paymentMethod) ? 'border-blue-500 bg-blue-500/5' : 'border-border bg-card'}`}>
@@ -1009,11 +1028,12 @@ const Checkout = () => {
                 </div>
 
                 {/* 3. Wallet */}
-                {walletBalance > 0 && (
+                {walletBalance > 0 && isFeatureEnabled('enable_wallet') && (
                   <div className={`border-2 rounded-xl overflow-hidden transition-all ${paymentMethod === 'wallet' ? 'border-lime bg-lime/10' : 'border-border bg-card'}`}>
                     <button
                       onClick={() => { setPaymentMethod('wallet'); setSelectedSavedMethod(null); }}
                       className="w-full p-4 flex items-center justify-between"
+                      style={{ textAlign: 'left' }}
                     >
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-lime/20 text-lime-700 rounded-lg"><Coins size={20} /></div>
@@ -1030,23 +1050,25 @@ const Checkout = () => {
                 )}
 
                 {/* 4. Cash on Delivery */}
-                <div className={`border-2 rounded-xl overflow-hidden transition-all ${paymentMethod === 'cod' ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
-                  <button
-                    onClick={() => { setPaymentMethod('cod'); setSelectedSavedMethod(null); }}
-                    className="w-full p-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 text-primary rounded-lg"><Truck size={20} /></div>
-                      <div className="text-left">
-                        <p className="font-bold">Cash on Delivery</p>
-                        <p className="text-xs text-muted-foreground">Pay when you receive</p>
+                {isFeatureEnabled('enable_cod') && (
+                  <div className={`border-2 rounded-xl overflow-hidden transition-all ${paymentMethod === 'cod' ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
+                    <button
+                      onClick={() => { setPaymentMethod('cod'); setSelectedSavedMethod(null); }}
+                      className="w-full p-4 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 text-primary rounded-lg"><Truck size={20} /></div>
+                        <div className="text-left">
+                          <p className="font-bold">Cash on Delivery</p>
+                          <p className="text-xs text-muted-foreground">Pay when you receive</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'cod' ? 'border-primary' : 'border-muted-foreground'}`}>
-                      {paymentMethod === 'cod' && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
-                    </div>
-                  </button>
-                </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'cod' ? 'border-primary' : 'border-muted-foreground'}`}>
+                        {paymentMethod === 'cod' && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* One-Click Checkout Toggle */}

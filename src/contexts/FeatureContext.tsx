@@ -1,16 +1,17 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-interface FeatureToggle {
-  feature_key: string;
+export interface FeatureToggle {
+  feature_name: string;
   is_enabled: boolean;
-  config: Record<string, any>;
+  display_name?: string;
+  description?: string;
+  category?: string;
 }
 
 interface FeatureContextType {
   features: Record<string, FeatureToggle>;
   isFeatureEnabled: (key: string) => boolean;
-  getFeatureConfig: (key: string) => Record<string, any> | null;
   isLoading: boolean;
   refetch: () => Promise<void>;
 }
@@ -20,62 +21,53 @@ const FeatureContext = createContext<FeatureContextType | undefined>(undefined);
 export function FeatureProvider({ children }: { children: ReactNode }) {
   const [features, setFeatures] = useState<Record<string, FeatureToggle>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
 
   const fetchFeatures = async () => {
-    // Only try to fetch once to avoid console spam
-    if (hasFetchedOnce) return;
-    setHasFetchedOnce(true);
-
     try {
       const { data, error } = await (supabase.from as any)('feature_toggles')
         .select('*');
 
       if (error) {
-        // Silently use defaults - table may not exist or RLS may be blocking
-        setDefaultFeatures();
+        console.error("Error fetching feature toggles:", error);
+        // Fallback to defaults or empty if error
+        if (Object.keys(features).length === 0) setDefaultFeatures();
         return;
       }
 
       if (data && data.length > 0) {
         const featureMap: Record<string, FeatureToggle> = {};
         data.forEach((f: any) => {
-          featureMap[f.feature_key] = {
-            feature_key: f.feature_key,
+          featureMap[f.feature_name] = {
+            feature_name: f.feature_name,
             is_enabled: f.is_enabled,
-            config: f.config || {}
+            display_name: f.display_name,
+            description: f.description,
+            category: f.category
           };
         });
         setFeatures(featureMap);
       } else {
-        // No data in table, use defaults
         setDefaultFeatures();
       }
     } catch (err) {
-      // Silently use defaults
+      console.error("Exception fetching feature toggles:", err);
       setDefaultFeatures();
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Default features when database table doesn't exist
+  // Safe defaults while loading or on error
   const setDefaultFeatures = () => {
     const defaults: Record<string, FeatureToggle> = {
-      flash_deals: { feature_key: 'flash_deals', is_enabled: true, config: {} },
-      price_alerts: { feature_key: 'price_alerts', is_enabled: true, config: {} },
-      spin_wheel: { feature_key: 'spin_wheel', is_enabled: true, config: {} },
-      split_payment: { feature_key: 'split_payment', is_enabled: true, config: {} },
-      live_tracking: { feature_key: 'live_tracking', is_enabled: true, config: {} },
-      order_scheduling: { feature_key: 'order_scheduling', is_enabled: true, config: {} },
-      achievements: { feature_key: 'achievements', is_enabled: true, config: {} },
-      social_sharing: { feature_key: 'social_sharing', is_enabled: true, config: {} },
-      advanced_search: { feature_key: 'advanced_search', is_enabled: true, config: {} },
-      product_gallery: { feature_key: 'product_gallery', is_enabled: true, config: {} },
-      referral_program: { feature_key: 'referral_program', is_enabled: true, config: {} },
-      loyalty_points: { feature_key: 'loyalty_points', is_enabled: true, config: {} },
+      store_open_status: { feature_name: 'store_open_status', is_enabled: true },
+      enable_delivery: { feature_name: 'enable_delivery', is_enabled: true },
+      snackzopay_gateway: { feature_name: 'snackzopay_gateway', is_enabled: true },
+      enable_cod: { feature_name: 'enable_cod', is_enabled: true },
+      enable_tips: { feature_name: 'enable_tips', is_enabled: true },
+      maintenance_mode: { feature_name: 'maintenance_mode', is_enabled: false },
     };
-    setFeatures(defaults);
+    setFeatures(prev => ({ ...defaults, ...prev }));
   };
 
   useEffect(() => {
@@ -83,12 +75,20 @@ export function FeatureProvider({ children }: { children: ReactNode }) {
 
     // Subscribe to changes
     const channel = supabase
-      .channel('feature_toggles_changes')
+      .channel('feature_context_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'feature_toggles' },
-        () => {
-          fetchFeatures();
+        (payload) => {
+          // Optimistic update or refetch
+          if (payload.new && 'feature_name' in payload.new) {
+            setFeatures(prev => ({
+              ...prev,
+              [payload.new.feature_name]: payload.new as FeatureToggle
+            }));
+          } else {
+            fetchFeatures();
+          }
         }
       )
       .subscribe();
@@ -99,20 +99,22 @@ export function FeatureProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const isFeatureEnabled = (key: string): boolean => {
-    return features[key]?.is_enabled ?? true; // Default to enabled
-  };
+    // If we have the feature in state, return its status. 
+    // Otherwise, return true by default to avoid blocking features if DB is slow (FAIL OPEN policy for non-critical)
+    // EXCEPT for maintenance_mode which should fail CLOSED (false).
+    if (key === 'maintenance_mode') return features[key]?.is_enabled ?? false;
 
-  const getFeatureConfig = (key: string): Record<string, any> | null => {
-    return features[key]?.config ?? null;
+    // Strict check: if it exists, return value. If not, assume true (or false depending on strategy).
+    // Let's go with: if not found, assume ENABLED for business continuity, unless critical.
+    return features[key]?.is_enabled ?? true;
   };
 
   return (
-    <FeatureContext.Provider value={{ 
-      features, 
-      isFeatureEnabled, 
-      getFeatureConfig,
-      isLoading, 
-      refetch: fetchFeatures 
+    <FeatureContext.Provider value={{
+      features,
+      isFeatureEnabled,
+      isLoading,
+      refetch: fetchFeatures
     }}>
       {children}
     </FeatureContext.Provider>

@@ -8,7 +8,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
-// import { FeatureProvider } from "@/contexts/FeatureContext"; // Temporarily disabled
+import { FeatureProvider } from "@/contexts/FeatureContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -33,10 +33,13 @@ import NotificationSettings from "./pages/NotificationSettings";
 import UserProfile from "./pages/UserProfile";
 import Settings from "./pages/Settings";
 import PrivacySecurity from "./pages/PrivacySecurity";
+import SecurityTrust from "./pages/SecurityTrust";
+import SecurityDashboard from "./pages/admin/SecurityDashboard";
 import PaymentMethods from "./pages/PaymentMethods";
 import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 import OfflinePage from "./pages/OfflinePage";
+import EmailPreviews from "./pages/EmailPreviews";
 import { ThemeProvider } from "./components/ThemeProvider";
 // New Feature Pages
 import GroupOrdering from "./pages/GroupOrdering";
@@ -53,6 +56,8 @@ import { LiveChat } from "./components/LiveChat";
 import SnackzoPayGateway from "./pages/SnackzoPayGateway";
 import SnackzoPayConfirm from "./pages/SnackzoPayConfirm";
 import { BottomNavigation } from "@/components/ui/BottomNavigation";
+import { QuickCart } from "@/components/QuickCart";
+import { AuthTransition } from "@/components/AuthTransition";
 
 const queryClient = new QueryClient();
 
@@ -100,7 +105,8 @@ const AppRoutes = () => {
         <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/form-builder" element={<ProtectedRoute requireAdmin={true}><FormBuilderPage /></ProtectedRoute>} />
         <Route path="/admin/forms/:formId/responses" element={<ProtectedRoute requireAdmin={true}><FormResponsesPage /></ProtectedRoute>} />
-        <Route path="/runner" element={<ProtectedRoute requireAdmin={true}><RunnerDashboard /></ProtectedRoute>} />
+        {/* <Route path="/admin/security" element={<ProtectedRoute requireAdmin={true}><SecurityDashboard /></ProtectedRoute>} /> */}
+        <Route path="/runner" element={<RunnerDashboard />} />
 
         {/* Semi-Public Routes */}
         <Route path="/products" element={<Products />} />
@@ -111,6 +117,10 @@ const AppRoutes = () => {
         <Route path="/pay" element={<ProtectedRoute><SnackzoPayGateway /></ProtectedRoute>} />
         <Route path="/pay/confirm" element={<ProtectedRoute><SnackzoPayConfirm /></ProtectedRoute>} />
 
+        {/* Public Trust Page */}
+        <Route path="/security" element={<SecurityTrust />} />
+        <Route path="/email-previews" element={<EmailPreviews />} />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
 
@@ -119,6 +129,7 @@ const AppRoutes = () => {
         <>
           <SnackzoAI />
           {user && <BottomNavigation />}
+          <QuickCart hasBottomNav={!!user} />
           <LiveChat />
         </>
       )}
@@ -126,8 +137,60 @@ const AppRoutes = () => {
   );
 };
 
+import MaintenancePage from "./pages/MaintenancePage";
+import { supabase } from "@/integrations/supabase/client";
+
 const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingMaintenance, setCheckingMaintenance] = useState(true);
+
+  // Check Maintenance Mode
+  useEffect(() => {
+    const checkMaintenance = async () => {
+      // 1. Get User Role
+      const { data: { user } } = await supabase.auth.getUser();
+      let adminStatus = false;
+
+      if (user) {
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (roles?.role === 'admin') adminStatus = true;
+      }
+      setIsAdmin(adminStatus);
+
+      // 2. Check Feature Toggle
+      const { data } = await supabase
+        .from('feature_toggles')
+        .select('is_enabled')
+        .eq('feature_name', 'maintenance_mode')
+        .single();
+
+      if (data?.is_enabled) setMaintenanceMode(true);
+
+      setCheckingMaintenance(false);
+    };
+
+    checkMaintenance();
+
+    // Subscribe to toggle changes in real-time
+    const channel = supabase
+      .channel('maintenance-mode')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'feature_toggles', filter: "feature_name=eq.maintenance_mode" },
+        (payload) => {
+          setMaintenanceMode(payload.new.is_enabled);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -151,22 +214,36 @@ const App = () => {
     );
   }
 
+  // Show Maintenance Page (Bypass for Admins)
+  if (!checkingMaintenance && maintenanceMode && !isAdmin) {
+    // Allow access to admin login even in maintenance mode
+    if (!window.location.pathname.startsWith('/admin') && !window.location.pathname.startsWith('/auth')) {
+      return (
+        <ThemeProvider defaultTheme="dark" storageKey="hostel-mart-theme">
+          <MaintenancePage />
+        </ThemeProvider>
+      );
+    }
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider defaultTheme="dark" storageKey="hostel-mart-theme">
           <AuthProvider>
-            {/* FeatureProvider temporarily disabled until database is set up */}
-            <FavoritesProvider>
-              <CartProvider>
-                <Toaster />
-                <Sonner />
-                <SocialProofToast />
-                <BrowserRouter>
-                  <AppRoutes />
-                </BrowserRouter>
-              </CartProvider>
-            </FavoritesProvider>
+            <FeatureProvider>
+              <FavoritesProvider>
+                <CartProvider>
+                  <Toaster />
+                  <Sonner />
+                  <SocialProofToast />
+                  <BrowserRouter>
+                    <AuthTransition />
+                    <AppRoutes />
+                  </BrowserRouter>
+                </CartProvider>
+              </FavoritesProvider>
+            </FeatureProvider>
           </AuthProvider>
         </ThemeProvider>
       </TooltipProvider>

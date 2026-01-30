@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence, useMotionValue } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +26,7 @@ export function ProductImageGallery({ images, productName, className }: ProductI
   const touchStartY = useRef(0);
 
   // Normalize images to array of strings
-  const imageUrls = images.map(img => 
+  const imageUrls = images.map(img =>
     typeof img === "string" ? img : img.image_url
   );
 
@@ -49,7 +49,7 @@ export function ProductImageGallery({ images, productName, className }: ProductI
     if (!isZoomed) {
       setIsZoomed(true);
     }
-    
+
     if (imageRef.current) {
       const rect = imageRef.current.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -90,7 +90,7 @@ export function ProductImageGallery({ images, productName, className }: ProductI
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isFullscreen) return;
-      
+
       switch (e.key) {
         case "ArrowLeft":
           handlePrev();
@@ -145,12 +145,12 @@ export function ProductImageGallery({ images, productName, className }: ProductI
         >
           <AnimatePresence mode="wait">
             <motion.img
-              key={currentIndex}
+              key={imageUrls[currentIndex]}
               src={imageUrls[currentIndex]}
               alt={`${productName} - Image ${currentIndex + 1}`}
               initial={{ opacity: 0, scale: 1.1 }}
-              animate={{ 
-                opacity: 1, 
+              animate={{
+                opacity: 1,
                 scale: isZoomed ? 2 : 1,
                 transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`
               }}
@@ -158,6 +158,8 @@ export function ProductImageGallery({ images, productName, className }: ProductI
               transition={{ duration: 0.2 }}
               className="w-full h-full object-cover"
               draggable={false}
+              loading="lazy"
+              decoding="async"
             />
           </AnimatePresence>
 
@@ -220,7 +222,7 @@ export function ProductImageGallery({ images, productName, className }: ProductI
                 key={index}
                 onClick={() => handleThumbnailClick(index)}
                 className={cn(
-                  "relative w-16 h-16 rounded-lg overflow-hidden shrink-0 transition-all",
+                  "relative w-16 h-16 rounded-lg overflow-hidden shrink-0 transition-all bg-muted",
                   index === currentIndex
                     ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
                     : "opacity-60 hover:opacity-100"
@@ -230,6 +232,7 @@ export function ProductImageGallery({ images, productName, className }: ProductI
                   src={url}
                   alt={`${productName} thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"
+                  loading="lazy"
                 />
               </button>
             ))}
@@ -298,7 +301,7 @@ export function ProductImageGallery({ images, productName, className }: ProductI
               onTouchEnd={handleTouchEnd}
             >
               <motion.div
-                className="relative max-w-full max-h-full"
+                className="relative max-w-full max-h-full flex items-center justify-center"
                 animate={{
                   scale: isZoomed ? 2 : 1
                 }}
@@ -316,6 +319,7 @@ export function ProductImageGallery({ images, productName, className }: ProductI
                     exit={{ opacity: 0, x: -100 }}
                     className="max-w-full max-h-[70vh] object-contain"
                     draggable={false}
+                    loading="lazy"
                   />
                 </AnimatePresence>
               </motion.div>
@@ -348,7 +352,7 @@ export function ProductImageGallery({ images, productName, className }: ProductI
                       key={index}
                       onClick={() => handleThumbnailClick(index)}
                       className={cn(
-                        "relative w-16 h-16 rounded-lg overflow-hidden shrink-0 transition-all",
+                        "relative w-16 h-16 rounded-lg overflow-hidden shrink-0 transition-all bg-muted",
                         index === currentIndex
                           ? "ring-2 ring-primary"
                           : "opacity-50 hover:opacity-100"
@@ -358,6 +362,7 @@ export function ProductImageGallery({ images, productName, className }: ProductI
                         src={url}
                         alt={`Thumbnail ${index + 1}`}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     </button>
                   ))}
@@ -399,7 +404,7 @@ export function MiniImageCarousel({ images, className }: MiniImageCarouselProps)
 
   return (
     <div
-      className={cn("relative overflow-hidden", className)}
+      className={cn("relative overflow-hidden bg-muted", className)}
       onMouseEnter={startAutoPlay}
       onMouseLeave={() => {
         stopAutoPlay();
@@ -408,14 +413,16 @@ export function MiniImageCarousel({ images, className }: MiniImageCarouselProps)
     >
       <AnimatePresence mode="wait">
         <motion.img
-          key={currentIndex}
+          key={images[currentIndex] || "default"}
           src={images[currentIndex] || images[0]}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
           className="w-full h-full object-cover"
-          alt=""
+          alt="Product Thumbnail"
+          loading="lazy"
+          decoding="async"
         />
       </AnimatePresence>
 

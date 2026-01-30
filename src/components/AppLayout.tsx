@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
-import { BottomNavigation, FloatingCartButton } from '@/components/ui/BottomNavigation';
+import { BottomNavigation } from '@/components/ui/BottomNavigation';
+import { QuickCart } from '@/components/QuickCart';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 
 interface AppLayoutProps {
@@ -11,9 +12,9 @@ interface AppLayoutProps {
   className?: string;
 }
 
-export function AppLayout({ 
-  children, 
-  showBottomNav = true, 
+export function AppLayout({
+  children,
+  showBottomNav = true,
   showCartButton = true,
   enablePullToRefresh = false,
   onRefresh,
@@ -22,17 +23,17 @@ export function AppLayout({
   const content = (
     <div className={`min-h-screen bg-background ${showBottomNav ? 'pb-20 md:pb-0' : ''} ${className}`}>
       {children}
-      
+
       {/* Mobile Bottom Navigation - Hidden on Desktop */}
       {showBottomNav && (
         <div className="md:hidden">
           <BottomNavigation />
         </div>
       )}
-      
-      {/* Floating Cart Button - Visible when bottom nav is hidden */}
-      {showCartButton && !showBottomNav && (
-        <FloatingCartButton />
+
+      {/* Quick Cart - Visible when cart button is enabled */}
+      {showCartButton && (
+        <QuickCart hasBottomNav={showBottomNav} />
       )}
     </div>
   );

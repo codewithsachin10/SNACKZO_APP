@@ -20,6 +20,8 @@ interface SnackzoPayProps {
     onCancel: () => void;
 }
 
+import { supabase } from "@/integrations/supabase/client";
+
 type PaymentMethod = "upi" | "card" | "wallet" | "netbanking";
 type PaymentStatus = "idle" | "processing" | "verifying" | "success" | "failed";
 
@@ -61,7 +63,36 @@ export const SnackzoPay = ({
     const [cardCvv, setCardCvv] = useState("");
     const [selectedBank, setSelectedBank] = useState("");
     const [transactionId, setTransactionId] = useState("");
+    const [sessionId, setSessionId] = useState<string | null>(null);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Initialize Payment Session on Mount
+    useEffect(() => {
+        const initSession = async () => {
+            if (!amount || !orderId) return;
+            try {
+                // Ensure orderId is formatted correctly if it's a UUID
+                // If orderId is purely cosmetic (e.g. #ORD-123), pass null to p_order_id?
+                // Assuming orderId IS the database UUID. If not, we might need a prop `dbOrderId`.
+                // For now, let's assume orderId prop is the UUID. 
+                // If it fails UUID validation, we might need to handle it.
+                // NOTE: If orderId is "ORD-123...", this will fail. 
+                // We'll try to use it if it looks like uuid, else pass null.
+                const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+
+                const { data, error } = await supabase.rpc('initiate_payment_session', {
+                    p_amount: amount,
+                    p_order_id: isUUID ? orderId : null
+                });
+
+                if (error) console.error("Session Init Error:", error);
+                if (data) setSessionId(data);
+            } catch (err) {
+                console.error("Payment Session Error", err);
+            }
+        };
+        initSession();
+    }, [amount, orderId]);
 
     const merchantUPI = generateUPIId();
 
@@ -91,26 +122,42 @@ export const SnackzoPay = ({
         return () => clearInterval(scanInterval);
     }, []);
 
-    // Process payment (demo mode)
+    // Process payment (Secure Mock Gateway)
     const processPayment = async (simulateSuccess: boolean) => {
+        if (!sessionId) {
+            onFailure("Session not initialized. Please try again.");
+            return;
+        }
+
         setStatus("processing");
         setShowTestMode(false);
 
-        // Simulate processing
-        await new Promise(r => setTimeout(r, 2000));
+        // Simulate network delay for realism
+        await new Promise(r => setTimeout(r, 1500));
         setStatus("verifying");
 
-        await new Promise(r => setTimeout(r, 1500));
+        try {
+            // Call the Server-Side Secure Function
+            const { data, error } = await supabase.rpc('process_mock_payment', {
+                p_session_id: sessionId,
+                p_success: simulateSuccess,
+                p_method: paymentMethod
+            });
 
-        const txnId = generateTransactionId();
-        setTransactionId(txnId);
+            if (error) throw error;
 
-        if (simulateSuccess) {
-            setStatus("success");
-            setTimeout(() => onSuccess(txnId), 2000);
-        } else {
+            if (data?.success && simulateSuccess) {
+                const txnId = generateTransactionId();
+                setTransactionId(txnId);
+                setStatus("success");
+                setTimeout(() => onSuccess(txnId), 2000);
+            } else {
+                throw new Error(data?.message || "Payment declined");
+            }
+        } catch (err: any) {
+            console.error("Payment Processing Error:", err);
             setStatus("failed");
-            setTimeout(() => onFailure("Payment declined by bank"), 2000);
+            setTimeout(() => onFailure(err.message || "Payment declined by server"), 2000);
         }
     };
 

@@ -28,6 +28,8 @@ import SnackzoPayManagement from "@/components/admin/SnackzoPayManagement";
 import NotificationCenter from "@/components/admin/NotificationCenter";
 import FeedbackManager from "@/components/admin/FeedbackManager";
 import BannerManager from "@/components/admin/BannerManager";
+import StorageManager from "@/components/admin/StorageManager";
+import SecurityDashboard from "@/pages/admin/SecurityDashboard";
 
 import { AdminSidebar, AdminTab } from "@/components/admin/AdminSidebar";
 
@@ -618,6 +620,8 @@ const AdminDashboard = () => {
           {activeTab === "live-chat" && <LiveSupport />}
           {activeTab === "notifications" && <NotificationCenter />}
           {activeTab === "feedback" && <FeedbackManager />}
+          {activeTab === "security" && <SecurityDashboard />}
+          {activeTab === "storage" && <StorageManager />}
 
         </div>
       </main>

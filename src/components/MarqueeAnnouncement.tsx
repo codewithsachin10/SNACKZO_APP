@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useFeatures } from "@/contexts/FeatureContext";
 
 const defaultAnnouncements = [
   "⚡ 15 min average delivery time",
@@ -40,6 +41,18 @@ const MarqueeAnnouncement = () => {
       .subscribe();
     return () => supabase.removeChannel(channel);
   };
+
+  /* Feature Toggle Integration */
+  const { isFeatureEnabled } = useFeatures(); // Needs import
+
+  useEffect(() => {
+    if (!isFeatureEnabled('store_open_status')) {
+      setAnnouncements(["🔴 STORE IS CURRENTLY CLOSED", "⏰ WE WILL BE BACK SOON", "🔴 STORE IS CURRENTLY CLOSED"]);
+    } else {
+      // Reset to normal if opened
+      fetchConfig();
+    }
+  }, [isFeatureEnabled('store_open_status')]);
 
   return (
     <div className="mt-28 md:mt-16 bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20 border-y border-border py-3 overflow-hidden">

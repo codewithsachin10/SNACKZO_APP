@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit, Save, Calendar, Clock, Image as ImageIcon, Link as LinkIcon, Eye, EyeOff, LayoutTemplate, List, StickyNote, Smartphone, Laptop, CalendarDays, Search, Filter, Wand2, ArrowRight } from "lucide-react";
+import { Plus, Trash2, Edit, Save, Calendar, Clock, Image as ImageIcon, Link as LinkIcon, Eye, EyeOff, LayoutTemplate, List, StickyNote, Smartphone, Laptop, CalendarDays, Search, Filter, Wand2, ArrowRight, Upload, Loader2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CalendarView from "@/components/admin/planner/CalendarView";
@@ -43,6 +43,43 @@ function BannersTab() {
         start_date: "",
         end_date: ""
     });
+
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // validation
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("File size must be less than 5MB");
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `banners/${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('public-assets')
+                .upload(fileName, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('public-assets')
+                .getPublicUrl(fileName);
+
+            setFormData(prev => ({ ...prev, image_url: publicUrl }));
+            toast.success("Image uploaded successfully");
+        } catch (error) {
+            console.error('Upload Error:', error);
+            toast.error("Failed to upload image");
+        } finally {
+            setIsUploading(false);
+        }
+    };
 
     useEffect(() => { fetchBanners(); }, []);
 
@@ -219,10 +256,47 @@ function BannersTab() {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Image URL</label>
-                                        <div className="flex gap-2">
-                                            <input className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-mono text-xs" value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })} placeholder="https://..." />
+                                    <div className="space-y-3">
+                                        <label className="text-sm font-medium">Banner Image</label>
+
+                                        <div className="space-y-3">
+                                            {/* Preview/Input Area */}
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        className="flex h-11 w-full rounded-lg border border-input bg-card pl-10 pr-3 py-2 text-sm font-mono text-xs"
+                                                        value={formData.image_url}
+                                                        onChange={e => setFormData({ ...formData, image_url: e.target.value })}
+                                                        placeholder="Enter URL or upload image..."
+                                                    />
+                                                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                                                </div>
+                                                <input
+                                                    type="file"
+                                                    id="banner-upload"
+                                                    className="hidden"
+                                                    accept="image/*"
+                                                    onChange={handleFileUpload}
+                                                    disabled={isUploading}
+                                                />
+                                                <label
+                                                    htmlFor="banner-upload"
+                                                    className={`flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg cursor-pointer hover:bg-secondary/80 transition-colors font-medium text-sm ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+                                                >
+                                                    {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                                                    {isUploading ? 'Uploading...' : 'Upload'}
+                                                </label>
+                                            </div>
+
+                                            {/* Drag & Drop Hint / Quick View */}
+                                            {formData.image_url && (
+                                                <div className="relative w-full h-32 bg-muted/30 rounded-xl border-2 border-dashed border-muted overflow-hidden group">
+                                                    <img src={formData.image_url} className="w-full h-full object-cover opacity-80" alt="Preview" onError={(e) => { e.currentTarget.style.opacity = '0' }} />
+                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                        <p className="text-xs text-muted-foreground font-medium bg-background/80 px-2 py-1 rounded backdrop-blur-sm">Image Preview</p>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 

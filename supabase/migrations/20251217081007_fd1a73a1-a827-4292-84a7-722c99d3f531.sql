@@ -1,8 +1,12 @@
--- Create role enum
-CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+-- Create role enum safely
+DO $$ BEGIN
+    CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Create profiles table
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
   full_name TEXT,
@@ -14,7 +18,7 @@ CREATE TABLE public.profiles (
 );
 
 -- Create user_roles table (separate from profiles for security)
-CREATE TABLE public.user_roles (
+CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   role app_role NOT NULL DEFAULT 'user',
@@ -23,7 +27,7 @@ CREATE TABLE public.user_roles (
 );
 
 -- Create categories table
-CREATE TABLE public.categories (
+CREATE TABLE IF NOT EXISTS public.categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL UNIQUE,
   emoji TEXT,
@@ -32,7 +36,7 @@ CREATE TABLE public.categories (
 );
 
 -- Create products table
-CREATE TABLE public.products (
+CREATE TABLE IF NOT EXISTS public.products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
@@ -47,16 +51,28 @@ CREATE TABLE public.products (
 );
 
 -- Create order status enum
-CREATE TYPE public.order_status AS ENUM ('placed', 'packed', 'out_for_delivery', 'delivered', 'cancelled');
+DO $$ BEGIN
+    CREATE TYPE public.order_status AS ENUM ('placed', 'packed', 'out_for_delivery', 'delivered', 'cancelled');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Create payment method enum
-CREATE TYPE public.payment_method AS ENUM ('upi', 'cod');
+DO $$ BEGIN
+    CREATE TYPE public.payment_method AS ENUM ('upi', 'cod');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Create delivery mode enum
-CREATE TYPE public.delivery_mode AS ENUM ('room', 'common_area');
+DO $$ BEGIN
+    CREATE TYPE public.delivery_mode AS ENUM ('room', 'common_area');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Create orders table
-CREATE TABLE public.orders (
+CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   status order_status NOT NULL DEFAULT 'placed',
@@ -72,7 +88,7 @@ CREATE TABLE public.orders (
 );
 
 -- Create order_items table
-CREATE TABLE public.order_items (
+CREATE TABLE IF NOT EXISTS public.order_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE NOT NULL,
   product_id UUID REFERENCES public.products(id) NOT NULL,

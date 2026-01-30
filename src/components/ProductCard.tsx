@@ -5,6 +5,9 @@ import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { ExpressDeliveryBadge } from "@/components/ExpressDeliveryBadge";
 
+import { toast } from "sonner";
+import { useFeatures } from "@/contexts/FeatureContext";
+
 interface ProductCardProps {
   id: string;
   name: string;
@@ -34,11 +37,14 @@ const ProductCard = ({
   const { addToCart, updateQuantity, getItemQuantity } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { user } = useAuth();
+  const { isFeatureEnabled } = useFeatures(); // Hook inside component
+
   const quantity = getItemQuantity(id);
   const favorited = isFavorite(id);
 
   const isLowStock = stock <= 3 && stock > 0;
   const isOutOfStock = stock === 0;
+  const isStoreOpen = isFeatureEnabled('store_open_status');
 
   const handleClick = () => {
     if (groupId) {
@@ -49,6 +55,12 @@ const ProductCard = ({
   };
 
   const handleAdd = () => {
+    if (!isStoreOpen) {
+      toast.error("The store is currently closed.");
+      return;
+    }
+
+
     // If inside group mode, clicking + button should ideally open detail or handle add directly
     // Ideally user reviews item details before adding to group, so redirect to detail is safer
     if (groupId) {
@@ -81,6 +93,8 @@ const ProductCard = ({
           src={image}
           alt={name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          loading="lazy"
+          decoding="async"
         />
 
         {/* Favorite Button */}

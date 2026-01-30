@@ -1,56 +1,202 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
     CreditCard, Zap, Copy, ExternalLink, CheckCircle, XCircle, Clock,
-    TrendingUp, DollarSign, ShoppingBag, Users, ArrowUpRight,
-    RefreshCw, Search, Filter, Calendar, Download, Eye, ShieldCheck,
-    Smartphone, Globe, Award
+    TrendingUp, DollarSign, Search, Filter, Download, Eye, ShieldCheck,
+    Smartphone, AlertTriangle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Mock transaction data
-const mockTransactions = [
-    { id: "pay_ABC123456789XY", amount: 499, status: "success", method: "UPI - PhonePe", customer: "Rahul S.", date: "2026-01-25T13:30:00", orderId: "ORD-2501", avatar: "R" },
-    { id: "pay_DEF987654321ZW", amount: 299, status: "success", method: "UPI - Google Pay", customer: "Priya M.", date: "2026-01-25T13:15:00", orderId: "ORD-2500", avatar: "P" },
-    { id: "pay_GHI456789123AB", amount: 749, status: "failed", method: "Card - HDFC", customer: "Amit K.", date: "2026-01-25T12:45:00", orderId: "ORD-2499", avatar: "A" },
-    { id: "pay_JKL321654987CD", amount: 199, status: "success", method: "Wallet", customer: "Sneha R.", date: "2026-01-25T12:30:00", orderId: "ORD-2498", avatar: "S" },
-    { id: "pay_MNO654321789EF", amount: 599, status: "pending", method: "UPI - Paytm", customer: "Vikram T.", date: "2026-01-25T12:00:00", orderId: "ORD-2497", avatar: "V" },
-    { id: "pay_PQR789123456GH", amount: 399, status: "success", method: "UPI - BHIM", customer: "Neha P.", date: "2026-01-25T11:30:00", orderId: "ORD-2496", avatar: "N" },
-    { id: "pay_STU123789456IJ", amount: 899, status: "success", method: "Net Banking - SBI", customer: "Suresh L.", date: "2026-01-25T11:00:00", orderId: "ORD-2495", avatar: "S" },
-    { id: "pay_VWX456123789KL", amount: 159, status: "failed", method: "Card - ICICI", customer: "Meena J.", date: "2026-01-25T10:30:00", orderId: "ORD-2494", avatar: "M" },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+// Transaction Interface
+interface Transaction {
+    id: string;
+    amount: number;
+    status: "success" | "failed" | "pending";
+    method: string;
+    customer: string;
+    date: string;
+    orderId: string;
+    avatar: string;
+}
 
 const SnackzoPayManagement = () => {
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | "success" | "failed" | "pending">("all");
     const [showTestLink, setShowTestLink] = useState(false);
 
+    // Disable Logic
+    const [showDisableModal, setShowDisableModal] = useState(false);
+    const [disableConfirmText, setDisableConfirmText] = useState("");
+    const [isGatewayDisabled, setIsGatewayDisabled] = useState(false);
+
+    // Fetch Real Data
+    useEffect(() => {
+        fetchTransactions();
+        checkGatewayStatus();
+    }, []);
+
+    const fetchTransactions = async () => {
+        setLoading(true);
+        // Try fetching with Join first
+        let { data, error } = await supabase
+            .from('payment_sessions')
+            .select(`
+                id, amount, status, payment_method_type, updated_at, order_id, guest_name,
+                profiles:user_id ( full_name )
+            `)
+            .order('updated_at', { ascending: false });
+
+        // Fallback: If FK relationship is missing (PGRST200), fetch without join
+        if (error && error.code === 'PGRST200') {
+            console.warn("Foreign Key missing on payment_sessions. Fetching without profiles.");
+            const fallback = await supabase
+                .from('payment_sessions')
+                .select(`id, amount, status, payment_method_type, updated_at, order_id, guest_name`)
+                .order('updated_at', { ascending: false });
+
+            data = fallback.data;
+            error = fallback.error;
+        }
+
+        if (error) {
+            console.error("Error fetching transactions:", error);
+            toast.error("Could not load transaction history");
+        } else if (data) {
+            const formattedData = data.map((item: any) => ({
+                id: item.id,
+                amount: item.amount || 0,
+                status: item.status || 'pending',
+                method: item.payment_method_type || 'Unknown',
+                customer: item.profiles?.full_name || item.guest_name || 'Guest',
+                date: item.updated_at,
+                orderId: item.order_id || 'N/A',
+                avatar: (item.profiles?.full_name?.[0] || item.guest_name?.[0] || 'G').toUpperCase()
+            }));
+            setTransactions(formattedData);
+        }
+        setLoading(false);
+    };
+
+    const checkGatewayStatus = async () => {
+        const { data } = await supabase
+            .from('feature_toggles')
+            .select('is_enabled')
+            .eq('feature_name', 'snackzopay_gateway')
+            .maybeSingle();
+
+        if (data) setIsGatewayDisabled(!data.is_enabled);
+    };
+
+    const handleDisableGateway = async () => {
+        if (disableConfirmText !== "Disable") return;
+
+        const { error } = await supabase
+            .from('feature_toggles')
+            .upsert({ feature_name: 'snackzopay_gateway', is_enabled: false }, { onConflict: 'feature_name' });
+
+        if (error) {
+            toast.error("Failed to disable gateway");
+        } else {
+            toast.success("🔴 SnackzoPay Gateway has been DISABLED");
+            setIsGatewayDisabled(true);
+            setShowDisableModal(false);
+            setDisableConfirmText("");
+        }
+    };
+
     // Stats
     const stats = useMemo(() => {
-        const total = mockTransactions.filter(t => t.status === "success").reduce((sum, t) => sum + t.amount, 0);
-        const successful = mockTransactions.filter(t => t.status === "success").length;
-        const failed = mockTransactions.filter(t => t.status === "failed").length;
-        const pending = mockTransactions.filter(t => t.status === "pending").length;
-        const successRate = Math.round((successful / mockTransactions.filter(t => t.status !== "pending").length) * 100) || 0;
-        return { total, successful, failed, pending, count: mockTransactions.length, successRate };
-    }, []);
+        const total = transactions.filter(t => t.status === "success").reduce((sum, t) => sum + t.amount, 0);
+        const successful = transactions.filter(t => t.status === "success").length;
+        const failed = transactions.filter(t => t.status === "failed").length;
+        const pending = transactions.filter(t => t.status === "pending").length;
+        const successRate = transactions.length > 0
+            ? Math.round((successful / transactions.filter(t => t.status !== "pending").length || 1) * 100)
+            : 0;
+        return { total, successful, failed, pending, count: transactions.length, successRate };
+    }, [transactions]);
 
     // Filtered transactions
     const filteredTransactions = useMemo(() => {
-        return mockTransactions.filter(t => {
+        return transactions.filter(t => {
             const matchesSearch = t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 t.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 t.orderId.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesStatus = statusFilter === "all" || t.status === statusFilter;
             return matchesSearch && matchesStatus;
         });
-    }, [searchQuery, statusFilter]);
+    }, [transactions, searchQuery, statusFilter]);
+
+    // Real-time updates
+    useEffect(() => {
+        const channel = supabase
+            .channel('admin-payment-updates')
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'payment_sessions' },
+                (payload) => {
+                    setTransactions(prev => prev.map(t =>
+                        t.id === payload.new.id
+                            ? { ...t, status: payload.new.status }
+                            : t
+                    ));
+                    if (payload.new.status === 'success') toast.success(`Payment ${payload.new.id.slice(0, 8)}... Succeeded!`);
+                }
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, []);
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
+        toast.success("Copied to clipboard!");
     };
 
-    const testPaymentUrl = `${window.location.origin}/pay?amount=499&orderId=TEST001&merchant=Hostel%20Mart`;
+    const downloadReceipt = (txn: Transaction) => {
+        const receipt = `
+SNACKZO PAY RECEIPT
+-------------------
+Transaction ID: ${txn.id}
+Date: ${new Date(txn.date).toLocaleString()}
+Status: ${txn.status.toUpperCase()}
+
+Amount: ₹${txn.amount}
+Method: ${txn.method}
+Order Ref: ${txn.orderId}
+Customer: ${txn.customer}
+
+Verified by SnackzoPay
+-------------------
+        `;
+        const blob = new Blob([receipt], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Receipt_${txn.id.slice(0, 8)}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success("Receipt downloaded");
+    };
+
+    // Get current user details for the test link
+    const [userName, setUserName] = useState("Admin");
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            if (data.user?.user_metadata?.full_name) {
+                setUserName(encodeURIComponent(data.user.user_metadata.full_name));
+            }
+        });
+    }, []);
+
+    const testPaymentUrl = `${window.location.origin}/pay?amount=499&orderId=TEST001&merchant=Hostel%20Mart&customerName=${userName}`;
 
     return (
         <div className="space-y-6">
@@ -77,12 +223,66 @@ const SnackzoPayManagement = () => {
                         <ExternalLink size={16} />
                         Test Payment
                     </button>
-                    <button className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium text-sm flex items-center gap-2 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] transition-all">
-                        <Download size={16} />
-                        Export Report
-                    </button>
+                    {!isGatewayDisabled && (
+                        <button
+                            onClick={() => setShowDisableModal(true)}
+                            className="px-5 py-2.5 bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 rounded-xl font-bold text-sm flex items-center gap-2 transition-all"
+                        >
+                            <XCircle size={16} />
+                            Disable Gateway
+                        </button>
+                    )}
+                    {isGatewayDisabled && (
+                        <div className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-bold text-sm flex items-center gap-2">
+                            <XCircle size={16} /> Gateway Disabled
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {/* Disable Confirmation Modal */}
+            {showDisableModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="bg-zinc-900 border border-red-500/30 p-6 rounded-2xl max-w-sm w-full shadow-2xl"
+                    >
+                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                            <AlertTriangle className="text-red-500" /> Disable SnackzoPay?
+                        </h3>
+                        <p className="text-zinc-400 text-sm mb-4">
+                            This will immediately stop all incoming payments for the entire platform.
+                            Users currently paying will fail.
+                        </p>
+
+                        <label className="text-xs font-semibold text-zinc-500 uppercase">Type "Disable" to confirm</label>
+                        <input
+                            type="text"
+                            className="w-full mt-2 bg-black border border-zinc-700 rounded-lg p-2 text-white outline-none focus:border-red-500 transition-colors"
+                            placeholder="Type Disable"
+                            value={disableConfirmText}
+                            onChange={e => setDisableConfirmText(e.target.value)}
+                        />
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => { setShowDisableModal(false); setDisableConfirmText(""); }}
+                                className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDisableGateway}
+                                disabled={disableConfirmText !== "Disable"}
+                                className="flex-1 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-bold transition-colors"
+                            >
+                                Confirm Disable
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
 
             {/* Test Payment Link Modal */}
             {showTestLink && (
@@ -279,7 +479,11 @@ const SnackzoPayManagement = () => {
                                             <button className="p-2 hover:bg-muted rounded-lg border border-transparent hover:border-border transition-all">
                                                 <Eye size={16} className="text-muted-foreground" />
                                             </button>
-                                            <button className="p-2 hover:bg-muted rounded-lg border border-transparent hover:border-border transition-all">
+                                            <button
+                                                onClick={() => downloadReceipt(txn)}
+                                                className="p-2 hover:bg-muted rounded-lg border border-transparent hover:border-border transition-all"
+                                                title="Download Receipt"
+                                            >
                                                 <Download size={16} className="text-muted-foreground" />
                                             </button>
                                         </div>

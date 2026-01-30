@@ -9,6 +9,8 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
 
+import { downloadInvoice } from "@/utils/billing/pdfGenerator";
+
 interface Order {
     id: string;
     created_at: string;
@@ -105,6 +107,29 @@ const Receipt = () => {
         }
     };
 
+
+    const handleTaxInvoice = () => {
+        if (!order) return;
+
+        // Map data to match PDF Generator Schema
+        const pdfData = {
+            id: order.id,
+            user_name: order.profile.full_name,
+            delivery_address: `${order.profile.hostel_block}, Room ${order.profile.room_number}`,
+            subtotal: order.total - order.delivery_fee - order.platform_fee,
+            delivery_fee: order.delivery_fee,
+            discount: 0,
+            total: order.total,
+            items: order.order_items.map(item => ({
+                name: item.product.name,
+                quantity: item.quantity,
+                price: item.price
+            }))
+        };
+        downloadInvoice(pdfData);
+        toast.success("Invoice downloaded!");
+    };
+
     if (loading) return <div className="min-h-screen flex items-center justify-center bg-black text-white">Loading Receipt...</div>;
     if (!order) return <div className="min-h-screen flex items-center justify-center bg-black text-white">Order not found</div>;
 
@@ -118,8 +143,8 @@ const Receipt = () => {
                     <Button variant="outline" size="sm" onClick={handleShare}>
                         <Share2 size={16} className="mr-2" /> Share
                     </Button>
-                    <Button size="sm" onClick={handleDownloadPDF} className="bg-lime text-black hover:bg-lime/90">
-                        <Download size={16} className="mr-2" /> PDF
+                    <Button size="sm" onClick={handleTaxInvoice} className="bg-lime text-black hover:bg-lime/90">
+                        <Download size={16} className="mr-2" /> Tax Invoice
                     </Button>
                 </div>
             </div>

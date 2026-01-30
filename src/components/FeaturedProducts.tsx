@@ -44,9 +44,9 @@ const FeaturedProducts = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="neu-card bg-card p-4 animate-pulse">
-                <div className="h-40 bg-background mb-4" />
-                <div className="h-4 bg-background mb-2" />
-                <div className="h-6 bg-background w-1/2" />
+                <div className="aspect-[4/3] bg-background mb-4 rounded-md" />
+                <div className="h-4 bg-background mb-2 w-3/4 rounded" />
+                <div className="h-6 bg-background w-1/2 rounded" />
               </div>
             ))}
           </div>

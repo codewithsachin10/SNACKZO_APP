@@ -1,7 +1,7 @@
 import {
     LayoutDashboard, ShoppingBag, Package, List, Truck,
     BarChart3, LineChart, Users, TrendingUp, Zap, Mail,
-    Bell, Wallet, AlertTriangle, Settings, LogOut, ToggleRight, Activity, HelpCircle, Database, CreditCard
+    Bell, Wallet, AlertTriangle, Settings, LogOut, ToggleRight, Activity, HelpCircle, Database, CreditCard, Shield, Folder
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,9 @@ export type AdminTab =
     | "support"
     | "settings"
     | "feedback"
-    | "banners";
+    | "banners"
+    | "security"
+    | "storage";
 
 interface AdminSidebarProps {
     activeTab: AdminTab;
@@ -49,6 +51,7 @@ const menuItems: { id: AdminTab; label: string; icon: any; badge?: string }[] = 
     { id: "products", label: "Products", icon: Package },
     { id: "categories", label: "Categories", icon: List },
     { id: "banners", label: "Banners", icon: Zap, badge: "NEW" },
+    { id: "storage", label: "Media Library", icon: Folder, badge: "NEW" },
     { id: "runners", label: "Runners", icon: Truck },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "advanced-analytics", label: "Advanced", icon: LineChart },
@@ -61,6 +64,7 @@ const menuItems: { id: AdminTab; label: string; icon: any; badge?: string }[] = 
     { id: "feedback", label: "Feedback", icon: HelpCircle, badge: "HOT" },
     { id: "wallet", label: "Wallet", icon: Wallet },
     { id: "snackzopay", label: "SnackzoPay", icon: CreditCard, badge: "NEW" },
+    { id: "security", label: "Security", icon: Shield, badge: "PRO" },
     { id: "alerts", label: "Alerts", icon: AlertTriangle },
     { id: "features", label: "Features", icon: ToggleRight },
     { id: "database", label: "Database", icon: Database },

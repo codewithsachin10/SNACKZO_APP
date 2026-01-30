@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { MessageCircle, X, Send, Loader2, User, HeadphoneOff } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, User, HeadphoneOff, Paperclip, ImageIcon, XCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,6 +13,7 @@ interface Message {
     message: string;
     created_at: string;
     is_admin_reply: boolean;
+    attachment_url?: string;
 }
 
 export const LiveChat = () => {
@@ -22,7 +23,10 @@ export const LiveChat = () => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Fetch or create active ticket
     useEffect(() => {
@@ -110,22 +114,72 @@ export const LiveChat = () => {
         }
     };
 
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error("File too large (max 5MB)");
+                return;
+            }
+            setSelectedFile(file);
+        }
+    };
+
     const sendMessage = async () => {
-        if (!input.trim() || !ticketId) return;
+        if ((!input.trim() && !selectedFile) || !ticketId) return;
 
-        const msg = input.trim();
-        setInput("");
+        let attachmentUrl = null;
+        const msgContent = input.trim(); // Capture input before clearing
 
-        // Optimistic UI
+        // Optimistic UI update
         const tempId = Math.random().toString();
-        const tempMsg = { id: tempId, sender_id: user?.id || "", message: msg, created_at: new Date().toISOString(), is_admin_reply: false };
+
+        // Handle Image Upload First if exists
+        if (selectedFile) {
+            setIsUploading(true);
+            try {
+                const fileExt = selectedFile.name.split('.').pop();
+                const fileName = `${Math.random()}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('support-attachments')
+                    .upload(fileName, selectedFile);
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('support-attachments')
+                    .getPublicUrl(fileName);
+
+                attachmentUrl = publicUrl;
+            } catch (error) {
+                console.error("Upload failed", error);
+                toast.error("Failed to upload image");
+                setIsUploading(false);
+                return;
+            }
+            setIsUploading(false);
+        }
+
+        setInput("");
+        setSelectedFile(null);
+
+        const tempMsg = {
+            id: tempId,
+            sender_id: user?.id || "",
+            message: msgContent,
+            created_at: new Date().toISOString(),
+            is_admin_reply: false,
+            attachment_url: attachmentUrl || undefined
+        };
+
         setMessages(prev => [...prev, tempMsg]);
         scrollToBottom();
 
         const { error } = await supabase.from("support_messages").insert({
             ticket_id: ticketId,
             sender_id: user?.id,
-            message: msg
+            message: msgContent,
+            attachment_url: attachmentUrl
         });
 
         if (error) {
@@ -195,11 +249,19 @@ export const LiveChat = () => {
                                             const isMe = !msg.is_admin_reply;
                                             return (
                                                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                    <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${isMe
+                                                    <div className={`max-w-[80%] rounded-2xl p-3 text-sm shadow-sm ${isMe
                                                         ? 'bg-primary text-primary-foreground rounded-tr-none'
                                                         : 'bg-secondary text-secondary-foreground rounded-tl-none'
                                                         }`}>
-                                                        {msg.message}
+
+                                                        {msg.attachment_url && (
+                                                            <div className="mb-2 rounded-lg overflow-hidden border border-white/20">
+                                                                <img src={msg.attachment_url} alt="Attachment" className="max-w-full h-auto object-cover" />
+                                                            </div>
+                                                        )}
+
+                                                        {msg.message && <p>{msg.message}</p>}
+
                                                         <p className={`text-[9px] mt-1 opacity-70 ${isMe ? 'text-right' : 'text-left'}`}>
                                                             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </p>
@@ -217,14 +279,44 @@ export const LiveChat = () => {
                                             onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
                                             className="flex gap-2"
                                         >
+                                            {selectedFile && (
+                                                <div className="absolute bottom-full left-0 mb-2 ml-4 p-2 bg-background border rounded-lg shadow-lg flex items-center gap-2">
+                                                    <div className="w-10 h-10 bg-secondary rounded flex items-center justify-center overflow-hidden">
+                                                        <ImageIcon size={16} />
+                                                    </div>
+                                                    <div className="max-w-[150px] truncate text-xs">
+                                                        {selectedFile.name}
+                                                    </div>
+                                                    <button onClick={() => setSelectedFile(null)} className="text-destructive hover:bg-destructive/10 rounded-full p-1">
+                                                        <XCircle size={14} />
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="p-2 text-muted-foreground hover:text-primary transition-colors"
+                                            >
+                                                <Paperclip size={18} />
+                                            </button>
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={handleFileSelect}
+                                            />
+
                                             <input
                                                 value={input}
                                                 onChange={(e) => setInput(e.target.value)}
-                                                placeholder="Type a message..."
-                                                className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                                placeholder={isUploading ? "Uploading..." : "Type a message..."}
+                                                disabled={isUploading}
+                                                className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                                             />
-                                            <Button size="icon" type="submit" className="rounded-full w-9 h-9 shrink-0">
-                                                <Send size={14} />
+                                            <Button size="icon" type="submit" disabled={isUploading || (!input.trim() && !selectedFile)} className="rounded-full w-9 h-9 shrink-0">
+                                                {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                                             </Button>
                                         </form>
                                     </div>
