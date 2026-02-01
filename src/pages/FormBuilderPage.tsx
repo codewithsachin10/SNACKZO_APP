@@ -11,8 +11,10 @@ import { CSS } from "@dnd-kit/utilities";
 import {
     Type, AlignLeft, Hash, Star, List, Calendar,
     MoveVertical, Trash2, Copy, Plus, Save, Eye, Settings, ArrowLeft, Pencil, X, Globe, Link as LinkIcon, ExternalLink, BarChart3,
-    Mail, Phone, Clock, LogIn, Upload, PenTool, Image as ImageIcon, Heading, CheckSquare
+    Mail, Phone, Clock, LogIn, Upload, PenTool, Image as ImageIcon, Heading, CheckSquare, QrCode, Download
 } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -543,6 +545,21 @@ export default function FormBuilderPage() {
         const [loading, setLoading] = useState(true);
         const [searchQuery, setSearchQuery] = useState("");
         const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
+        const [qrForm, setQrForm] = useState<any | null>(null);
+
+        const downloadQr = () => {
+            const canvas = document.getElementById("qr-code-canvas") as HTMLCanvasElement;
+            if (canvas) {
+                const pngUrl = canvas.toDataURL("image/png");
+                const downloadLink = document.createElement("a");
+                downloadLink.href = pngUrl;
+                downloadLink.download = `QR-${qrForm?.title || 'Form'}.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                toast.success("QR Code downloaded!");
+            }
+        };
 
         const loadForms = async () => {
             setLoading(true);
@@ -654,6 +671,9 @@ export default function FormBuilderPage() {
                                         <button onClick={() => editForm(form)} className="p-2 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-primary transition-colors" title="Edit Form">
                                             <Pencil size={16} />
                                         </button>
+                                        <button onClick={() => setQrForm(form)} className="p-2 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-purple-400 transition-colors" title="Show QR Code">
+                                            <QrCode size={16} />
+                                        </button>
                                         <a href={`/forms/${form.id}`} target="_blank" className="p-2 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-foreground transition-colors" title="View Form">
                                             <ExternalLink size={16} />
                                         </a>
@@ -700,6 +720,53 @@ export default function FormBuilderPage() {
                         ))
                     )}
                 </div>
+
+                {/* QR Code Dialog */}
+                <Dialog open={!!qrForm} onOpenChange={(open) => !open && setQrForm(null)}>
+                    <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-white/10 text-foreground">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl font-bold">Share Form</DialogTitle>
+                            <DialogDescription className="text-muted-foreground">
+                                Scan to access <strong>{qrForm?.title}</strong>
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex flex-col items-center justify-center p-6 space-y-6">
+                            <div className="p-4 bg-white rounded-2xl shadow-xl shadow-primary/20">
+                                {qrForm && (
+                                    <QRCodeCanvas
+                                        id="qr-code-canvas"
+                                        value={`${window.location.origin}/forms/${qrForm.id}`}
+                                        size={200}
+                                        level={"H"}
+                                        includeMargin={true}
+                                        imageSettings={{
+                                            src: "/logo.png",
+                                            x: undefined,
+                                            y: undefined,
+                                            height: 40,
+                                            width: 40,
+                                            excavate: true,
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={downloadQr}
+                                    className="flex-1 bg-primary text-primary-foreground font-bold py-2 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                                >
+                                    <Download size={16} /> Download PNG
+                                </button>
+                                <button
+                                    onClick={() => { copyLink(qrForm?.id || ''); setQrForm(null); }}
+                                    className="flex-1 bg-white/5 border border-white/10 font-bold py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
+                                >
+                                    <LinkIcon size={16} /> Copy URL
+                                </button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
         );
     };
