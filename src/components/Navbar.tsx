@@ -119,6 +119,7 @@ const Navbar = () => {
             {user ? (
               <div className="relative">
                 <button
+                  id="nav-user-menu-btn"
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   className="glass-card px-3 py-2 flex items-center gap-2 hover:border-primary/50 transition-colors"
                 >
@@ -147,6 +148,7 @@ const Navbar = () => {
                       </div>
 
                       <button
+                        id="menu-wallet"
                         onClick={() => {
                           setIsMenuOpen(false);
                           navigate("/wallet");
@@ -180,6 +182,7 @@ const Navbar = () => {
                       </button>
 
                       <button
+                        id="menu-orders"
                         onClick={() => {
                           setIsMenuOpen(false);
                           navigate("/orders");
@@ -235,6 +238,7 @@ const Navbar = () => {
                       </button>
 
                       <button
+                        id="menu-refer"
                         onClick={() => {
                           setIsMenuOpen(false);
                           // Simple toast for demo

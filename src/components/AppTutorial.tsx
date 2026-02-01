@@ -113,11 +113,58 @@ const AppTutorial = () => {
                     align: "center"
                 }
             },
+            // INTERACTIVE STEP: Open User Menu
+            {
+                element: "#nav-user-menu-btn",
+                popover: {
+                    title: "Unlock Your Profile 🔓",
+                    description: "Click here to access your **Wallet**, **Orders**, and **Exclusive Rewards**.",
+                    side: "bottom",
+                    align: "end",
+                    showButtons: [], // Force user to click
+                },
+                onHighlightStarted: (element: Element) => {
+                    if (!element) return;
+                    const clickHandler = () => {
+                        setTimeout(() => { driverObj.moveNext(); }, 400); // Wait for menu animation
+                        element.removeEventListener('click', clickHandler);
+                    };
+                    element.addEventListener('click', clickHandler);
+                }
+            },
+            // Menu Items (Assuming menu is now open)
+            {
+                element: "#menu-wallet",
+                popover: {
+                    title: "Super Fast Checkout ⚡️",
+                    description: "Top up your wallet for **1-click payments**. No OTPs, no waiting!",
+                    side: "left",
+                    align: "center"
+                }
+            },
+            {
+                element: "#menu-orders",
+                popover: {
+                    title: "Track Live Orders 🛵",
+                    description: "Watch your runner bring your food in real-time on our map.",
+                    side: "left",
+                    align: "center"
+                }
+            },
+            {
+                element: "#menu-refer",
+                popover: {
+                    title: "Free Money! 💸",
+                    description: "Invite friends and earn **₹50** for every referral. Unlimited earnings!",
+                    side: "left",
+                    align: "center"
+                }
+            },
             {
                 element: "#nav-cart",
                 popover: {
-                    title: "Checkout 🛒",
-                    description: "View your cart, apply coupons, and track your order here.",
+                    title: "Ready to Eat? 🛒",
+                    description: "Your cart is waiting. Let's get snacking!",
                     side: "bottom",
                     align: "end"
                 }
