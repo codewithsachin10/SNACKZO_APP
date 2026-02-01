@@ -4,8 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Edit2, Zap, Tag, Copy,
-  Check, Calendar, BarChart3, ArrowRight, Wallet
+  Check, Calendar, BarChart3, ArrowRight, Wallet, QrCode, Download, Link as LinkIcon
 } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Product {
@@ -39,6 +41,7 @@ const PromotionsDiscounts = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState<Discount | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [qrDiscount, setQrDiscount] = useState<Discount | null>(null);
 
   const [discountForm, setDiscountForm] = useState({
     code: "",
@@ -143,6 +146,20 @@ const PromotionsDiscounts = () => {
     setCopiedId(id);
     toast.success("Code copied to clipboard!");
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const downloadQr = () => {
+    const canvas = document.getElementById("promo-qr-canvas") as HTMLCanvasElement;
+    if (canvas) {
+      const pngUrl = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.href = pngUrl;
+      downloadLink.download = `QR-${qrDiscount?.code || 'Promo'}.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      toast.success("QR Code downloaded!");
+    }
   };
 
   const productsOnSale = useMemo(() =>
@@ -368,6 +385,13 @@ const PromotionsDiscounts = () => {
                             className="flex-1 py-2 text-sm font-bold bg-muted/50 hover:bg-muted text-foreground rounded-lg transition-colors flex items-center justify-center gap-2"
                           >
                             <Edit2 size={14} /> Edit
+                          </button>
+                          <button
+                            onClick={() => setQrDiscount(discount)}
+                            className="p-2 text-muted-foreground hover:text-purple-500 hover:bg-purple-500/10 rounded-lg transition-colors"
+                            title="Show QR Code"
+                          >
+                            <QrCode size={16} />
                           </button>
                           <button
                             onClick={() => handleDeleteDiscount(discount.id)}
@@ -604,6 +628,58 @@ const PromotionsDiscounts = () => {
         </>,
         document.body
       )}
+      {/* QR Code Dialog */}
+      <Dialog open={!!qrDiscount} onOpenChange={(open) => !open && setQrDiscount(null)}>
+        <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-white/10 text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Share Promotion</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Scan to redeem code <strong>{qrDiscount?.code}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-6 space-y-6">
+            <div className="p-4 bg-white rounded-2xl shadow-xl shadow-primary/20">
+              {qrDiscount && (
+                <QRCodeCanvas
+                  id="promo-qr-canvas"
+                  value={`${window.location.origin}/?code=${qrDiscount.code}`}
+                  size={200}
+                  level={"H"}
+                  includeMargin={true}
+                  imageSettings={{
+                    src: "/logo.png",
+                    x: undefined,
+                    y: undefined,
+                    height: 40,
+                    width: 40,
+                    excavate: true,
+                  }}
+                />
+              )}
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-2xl font-black text-primary tracking-widest">{qrDiscount?.code}</p>
+              <p className="text-xs text-muted-foreground">
+                {qrDiscount?.discount_type === 'percentage' ? `${qrDiscount?.discount_value}% OFF` : `₹${qrDiscount?.discount_value} OFF`}
+              </p>
+            </div>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={downloadQr}
+                className="flex-1 bg-primary text-primary-foreground font-bold py-2 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+              >
+                <Download size={16} /> Download
+              </button>
+              <button
+                onClick={() => copyToClipboard(`${window.location.origin}/?code=${qrDiscount?.code}`, 'url')}
+                className="flex-1 bg-white/5 border border-white/10 font-bold py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
+              >
+                <LinkIcon size={16} /> Copy URL
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
