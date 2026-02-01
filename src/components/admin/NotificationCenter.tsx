@@ -7,7 +7,7 @@ import {
     Zap, History as HistoryIcon, Plus, X,
     Terminal, Library, Flame, Utensils, Check, Loader2,
     Cpu, User, MoreHorizontal, Settings, ShieldCheck,
-    Activity, Radio, MessageSquare, Info, Filter, Paperclip, Monitor, Eye, Sparkles, Clock, TrendingUp, Save, Package, CreditCard, Hash, DollarSign
+    Activity, Radio, MessageSquare, Info, Filter, Paperclip, Monitor, Eye, Sparkles, Clock, TrendingUp, Save, Package, CreditCard, Hash, DollarSign, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -807,16 +807,115 @@ export default function NotificationCenter() {
                                                             </div>
 
                                                             <div className="space-y-2">
-                                                                <Label className="text-[10px] text-muted-foreground">Items Preview</Label>
-                                                                <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                                                                <div className="flex items-center justify-between">
+                                                                    <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Order Items</Label>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-5 text-[10px] px-2 text-primary hover:bg-primary/10"
+                                                                        onClick={() => {
+                                                                            const newItems = [...(editorData.order.items || []), { name: "New Item", qty: 1, price: 0 }];
+                                                                            setEditorData(prev => ({ ...prev, order: { ...prev.order, items: newItems } }));
+                                                                        }}
+                                                                    >
+                                                                        <Plus size={10} className="mr-1" /> Add Item
+                                                                    </Button>
+                                                                </div>
+
+                                                                <div className="space-y-2">
                                                                     {editorData.order.items?.map((item: any, idx: number) => (
-                                                                        <div key={idx} className="flex justify-between items-center text-xs">
-                                                                            <span className="text-foreground">{item.qty}x {item.name}</span>
-                                                                            <span className="text-muted-foreground">₹{item.price * item.qty}</span>
+                                                                        <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border group hover:border-primary/30 transition-colors">
+                                                                            {/* Qty */}
+                                                                            <div className="w-10 shrink-0">
+                                                                                <Input
+                                                                                    className="h-7 text-xs text-center px-1"
+                                                                                    type="number"
+                                                                                    min={1}
+                                                                                    value={item.qty}
+                                                                                    onChange={(e) => {
+                                                                                        const newItems = [...(editorData.order.items || [])];
+                                                                                        newItems[idx].qty = Number(e.target.value);
+                                                                                        const newTotal = newItems.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+                                                                                        setEditorData(prev => ({
+                                                                                            ...prev,
+                                                                                            order: { ...prev.order, items: newItems, amount: newTotal }
+                                                                                        }));
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+
+                                                                            {/* Name */}
+                                                                            <div className="flex-1">
+                                                                                <Input
+                                                                                    className="h-7 text-xs"
+                                                                                    value={item.name}
+                                                                                    onChange={(e) => {
+                                                                                        const newItems = [...(editorData.order.items || [])];
+                                                                                        newItems[idx].name = e.target.value;
+                                                                                        setEditorData(prev => ({ ...prev, order: { ...prev.order, items: newItems } }));
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+
+                                                                            {/* Price */}
+                                                                            <div className="w-16">
+                                                                                <div className="relative">
+                                                                                    <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">₹</span>
+                                                                                    <Input
+                                                                                        className="h-7 text-xs pl-4"
+                                                                                        type="number"
+                                                                                        value={item.price}
+                                                                                        onChange={(e) => {
+                                                                                            const newItems = [...(editorData.order.items || [])];
+                                                                                            newItems[idx].price = Number(e.target.value);
+                                                                                            const newTotal = newItems.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+                                                                                            setEditorData(prev => ({
+                                                                                                ...prev,
+                                                                                                order: { ...prev.order, items: newItems, amount: newTotal }
+                                                                                            }));
+                                                                                        }}
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* Remove */}
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                                                onClick={() => {
+                                                                                    const newItems = editorData.order.items.filter((_: any, index: number) => index !== idx);
+                                                                                    const newTotal = newItems.reduce((acc: number, curr: any) => acc + (curr.price * curr.qty), 0);
+                                                                                    setEditorData(prev => ({
+                                                                                        ...prev,
+                                                                                        order: { ...prev.order, items: newItems, amount: newTotal }
+                                                                                    }));
+                                                                                }}
+                                                                            >
+                                                                                <Trash2 size={12} />
+                                                                            </Button>
                                                                         </div>
                                                                     ))}
+
+                                                                    {(!editorData.order.items || editorData.order.items.length === 0) && (
+                                                                        <div className="text-center py-6 border-2 border-dashed border-muted rounded-lg bg-muted/20">
+                                                                            <p className="text-xs text-muted-foreground mb-2">No items in order</p>
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="outline"
+                                                                                onClick={() => {
+                                                                                    const newItems = [{ name: "New Item", qty: 1, price: 100 }];
+                                                                                    setEditorData(prev => ({
+                                                                                        ...prev,
+                                                                                        order: { ...prev.order, items: newItems, amount: 100 }
+                                                                                    }));
+                                                                                }}
+                                                                            >
+                                                                                <Plus size={12} className="mr-1" /> Add First Item
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                                <p className="text-[9px] text-muted-foreground italic">Item editing coming soon</p>
                                                             </div>
                                                         </div>
                                                     </>
@@ -891,6 +990,107 @@ export default function NotificationCenter() {
                                                                     <option value="Wallet">Wallet</option>
                                                                     <option value="Cash on Delivery">Cash on Delivery</option>
                                                                 </select>
+                                                            </div>
+
+                                                            <div className="space-y-2">
+                                                                <div className="flex items-center justify-between">
+                                                                    <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Receipt Items</Label>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-5 text-[10px] px-2 text-primary hover:bg-primary/10"
+                                                                        onClick={() => {
+                                                                            const newItems = [...(editorData.payment.items || []), { name: "New Item", qty: 1, price: 0 }];
+                                                                            setEditorData(prev => ({ ...prev, payment: { ...prev.payment, items: newItems } }));
+                                                                        }}
+                                                                    >
+                                                                        <Plus size={10} className="mr-1" /> Add
+                                                                    </Button>
+                                                                </div>
+
+                                                                <div className="space-y-2">
+                                                                    {editorData.payment.items?.map((item: any, idx: number) => (
+                                                                        <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border group hover:border-primary/30 transition-colors">
+                                                                            <div className="w-8 shrink-0">
+                                                                                <Input
+                                                                                    className="h-7 text-xs text-center px-1"
+                                                                                    type="number"
+                                                                                    min={1}
+                                                                                    value={item.qty}
+                                                                                    onChange={(e) => {
+                                                                                        const newItems = [...(editorData.payment.items || [])];
+                                                                                        newItems[idx].qty = Number(e.target.value);
+                                                                                        const newTotal = newItems.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+                                                                                        setEditorData(prev => ({
+                                                                                            ...prev,
+                                                                                            payment: { ...prev.payment, items: newItems, amount: newTotal }
+                                                                                        }));
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex-1">
+                                                                                <Input
+                                                                                    className="h-7 text-xs"
+                                                                                    value={item.name}
+                                                                                    onChange={(e) => {
+                                                                                        const newItems = [...(editorData.payment.items || [])];
+                                                                                        newItems[idx].name = e.target.value;
+                                                                                        setEditorData(prev => ({ ...prev, payment: { ...prev.payment, items: newItems } }));
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+                                                                            <div className="w-14">
+                                                                                <Input
+                                                                                    className="h-7 text-xs pl-2"
+                                                                                    type="number"
+                                                                                    value={item.price}
+                                                                                    onChange={(e) => {
+                                                                                        const newItems = [...(editorData.payment.items || [])];
+                                                                                        newItems[idx].price = Number(e.target.value);
+                                                                                        const newTotal = newItems.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+                                                                                        setEditorData(prev => ({
+                                                                                            ...prev,
+                                                                                            payment: { ...prev.payment, items: newItems, amount: newTotal }
+                                                                                        }));
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                                                onClick={() => {
+                                                                                    const newItems = editorData.payment.items.filter((_: any, index: number) => index !== idx);
+                                                                                    const newTotal = newItems.reduce((acc: number, curr: any) => acc + (curr.price * curr.qty), 0);
+                                                                                    setEditorData(prev => ({
+                                                                                        ...prev,
+                                                                                        payment: { ...prev.payment, items: newItems, amount: newTotal }
+                                                                                    }));
+                                                                                }}
+                                                                            >
+                                                                                <Trash2 size={12} />
+                                                                            </Button>
+                                                                        </div>
+                                                                    ))}
+
+                                                                    {(!editorData.payment.items || editorData.payment.items.length === 0) && (
+                                                                        <div className="text-center py-4 border-2 border-dashed border-muted rounded-lg bg-muted/20">
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="outline"
+                                                                                onClick={() => {
+                                                                                    const newItems = [{ name: "Order Payment", qty: 1, price: 500 }];
+                                                                                    setEditorData(prev => ({
+                                                                                        ...prev,
+                                                                                        payment: { ...prev.payment, items: newItems, amount: 500 }
+                                                                                    }));
+                                                                                }}
+                                                                            >
+                                                                                <Plus size={12} className="mr-1" /> Add Payment Item
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
 
                                                             <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
