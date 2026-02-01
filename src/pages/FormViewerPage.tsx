@@ -101,6 +101,44 @@ const LoginField = () => {
     );
 };
 
+
+// Helper to convert hex to HSL for Tailwind
+const hexToHsl = (hex: string) => {
+    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    hex = hex.replace(shorthandRegex, (m, r, g, b) => {
+        return r + r + g + g + b + b;
+    });
+
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return "270 70% 50%"; // Default purple if invalid
+
+    let r = parseInt(result[1], 16);
+    let g = parseInt(result[2], 16);
+    let b = parseInt(result[3], 16);
+
+    r /= 255;
+    g /= 255;
+    b /= 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+
+    if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+
+    return `${(h * 360).toFixed(1)} ${(s * 100).toFixed(1)}% ${(l * 100).toFixed(1)}%`;
+};
+
 export default function FormViewerPage() {
     const { formId } = useParams();
     const navigate = useNavigate();
@@ -351,22 +389,18 @@ export default function FormViewerPage() {
     const backgroundColor = theme.backgroundColor || "#000000"; // Default to black/dark if null, but usually white in DB default
     const borderRadius = theme.borderRadius || "0.75rem";
 
+    // Calculate HSL for primary color injection
+    const primaryHsl = hexToHsl(primaryColor);
+
     return (
         <div
             className="min-h-screen py-12 px-4 sm:px-6 transition-colors duration-500"
-            style={{ backgroundColor: backgroundColor, color: '#ffffff' }} // Force text white for now? No, depends on contrast. 
-        // Actually, if bg is white, text should be black. If bg is dark, text white.
-        // The app seems to be dark mode by default ("min-h-screen bg-background").
-        // If user picks white BG, we need to invert text color or assume they pick dark text?
-        // "hostel-mart-theme" is set to dark in App.tsx.
-        // Let's assume the user picks colors that work, but we should probably force a text color if we can calc contrast, 
-        // OR just let the cards be contrasting.
-        // For this specific request, the user wants the "Canvas Tone" to apply.
+            style={{ backgroundColor: backgroundColor, color: '#ffffff' }}
         >
             {/* Dynamic Style Injection for Primary Color */}
             <style>{`
                 :root {
-                    --primary: ${primaryColor};
+                    --primary: ${primaryHsl};
                     --radius: ${borderRadius};
                 }
                 .theme-text { color: ${primaryColor}; }
@@ -385,11 +419,6 @@ export default function FormViewerPage() {
                     style={{
                         borderRadius: borderRadius,
                         borderTop: `8px solid ${primaryColor}`,
-                        // If the background is very light, we might want a dark card, or vice-versa.
-                        // For now, let's stick to the glass-card look but allow it to be opaque if needed?
-                        // The user's screenshot had a white card on white bg (invisible).
-                        // Let's force a card background that contrasts slightly or just standard 'bg-card' 
-                        // which in this app seems to be dark.
                     }}
                 >
                     <h1 className="text-3xl font-black mb-2">{form.title}</h1>
@@ -458,10 +487,6 @@ export default function FormViewerPage() {
                                         type="button"
                                         onClick={() => {
                                             handleInputChange(field.id, null);
-                                            // Force re-render of canvas would be needed to clear, 
-                                            // ideally we keep ref to canvas and call clearRect.
-                                            // For MVP, just reload works or we can't clear easily without ref.
-                                            // Let's rely on user overwriting.
                                         }}
                                         className="text-xs text-muted-foreground hover:text-destructive"
                                     >
@@ -615,6 +640,7 @@ export default function FormViewerPage() {
                             type="submit"
                             disabled={submitting}
                             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-black text-lg py-4 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
+                            style={{ backgroundColor: primaryColor, color: '#ffffff' }}
                         >
                             {submitting ? <Loader2 className="animate-spin" /> : <>Submit Response <ChevronRight /></>}
                         </button>
