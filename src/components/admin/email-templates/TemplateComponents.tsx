@@ -59,130 +59,150 @@ export const MOCK_DATA = {
     }
 };
 
-// --- 1. Modern Minimalist ---
+// --- Helper for Styles ---
+const fontFamilySans = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"';
+const fontFamilySerif = 'Georgia, Times, "Times New Roman", serif';
+const fontFamilyMono = '"Courier Prime", "Courier New", Courier, monospace';
+
 // --- 1. Modern Minimalist (SaaS Style) ---
-export const ModernMinimalist: React.FC<EmailTemplateProps> = ({ type, data, options }) => (
-    <div className="w-full h-full bg-white font-sans text-slate-900 flex flex-col">
-        {data.bannerUrl && <img src={data.bannerUrl} alt="Banner" className="w-full h-48 object-cover" />}
+export const ModernMinimalist: React.FC<EmailTemplateProps> = ({ type, data, options }) => {
+    const themeColor = options?.themeColor || '#2563eb';
 
-        <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10">
-            <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-slate-200">S</div>
-                <h1 className="text-lg font-bold tracking-tight text-slate-900">Snackzo</h1>
-            </div>
-            <span className="px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-full border border-slate-200">
-                {type === 'update' ? 'Broadcast' : `#${data.orderId}`}
-            </span>
-        </div>
+    return (
+        <div style={{ width: '100%', height: '100%', backgroundColor: '#ffffff', fontFamily: fontFamilySans, color: '#0f172a', margin: 0, padding: 0 }}>
+            {data.bannerUrl && <img src={data.bannerUrl} alt="Banner" style={{ width: '100%', height: '192px', objectFit: 'cover', display: 'block' }} />}
 
-        <div className="p-10 text-center flex-1">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 shadow-sm"
-                style={{ backgroundColor: options?.themeColor ? options.themeColor + '15' : '#eff6ff', color: options?.themeColor || '#2563eb' }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '32px', height: '32px', backgroundColor: '#0f172a', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '14px', lineHeight: '32px', textAlign: 'center' }}>S</div>
+                    <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#0f172a' }}>Snackzo</h1>
+                </div>
+                <span style={{ padding: '4px 12px', backgroundColor: '#f1f5f9', color: '#475569', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', borderRadius: '9999px', border: '1px solid #e2e8f0' }}>
+                    {type === 'update' ? 'Broadcast' : `#${data.orderId}`}
+                </span>
             </div>
 
-            <h2 className="text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">
-                {type === 'update' ? data.subject : "Order Confirmed"}
-            </h2>
-            <p className="text-slate-500 text-lg leading-relaxed max-w-sm mx-auto">
-                {type === 'update' ? data.message : `Thanks, ${data.userName}. We've received your order and are preparing it now.`}
-            </p>
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+                <div style={{
+                    width: '64px', height: '64px', borderRadius: '50%', margin: '0 auto 24px auto',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: options?.themeColor ? options.themeColor + '15' : '#eff6ff',
+                    color: themeColor
+                }}>
+                    {/* SVG icons don't always render well in email, using a simple character or img is safer, but keeping SVG for now as some clients support it */}
+                    <span style={{ fontSize: '32px', lineHeight: '64px' }}>✓</span>
+                </div>
 
-            {type !== 'update' && data.items && (
-                <div className="mt-10 bg-slate-50/50 rounded-2xl border border-slate-100 p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-left">
-                    <div className="space-y-4">
-                        {data.items.map((i, idx) => (
-                            <div key={idx} className="flex justify-between items-center text-sm group">
-                                <div className="flex items-center gap-3">
-                                    <span className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded text-xs font-medium text-slate-500 shadow-sm">{i.qty}</span>
-                                    <span className="font-medium text-slate-700 group-hover:text-slate-900 transition-colors">{i.name}</span>
+                <h2 style={{ fontSize: '30px', fontWeight: '800', color: '#0f172a', marginBottom: '12px', letterSpacing: '-0.025em', margin: '0 0 12px 0' }}>
+                    {type === 'update' ? data.subject : "Order Confirmed"}
+                </h2>
+                <p style={{ color: '#64748b', fontSize: '18px', lineHeight: '1.625', maxWidth: '384px', margin: '0 auto' }}>
+                    {type === 'update' ? data.message : `Thanks, ${data.userName}. We've received your order and are preparing it now.`}
+                </p>
+
+                {type !== 'update' && data.items && (
+                    <div style={{ marginTop: '40px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9', padding: '24px', textAlign: 'left' }}>
+                        <div style={{ width: '100%' }}>
+                            {data.items.map((i, idx) => (
+                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', fontSize: '14px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <span style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '12px', fontWeight: '500', color: '#64748b', lineHeight: '24px', textAlign: 'center', marginRight: '12px' }}>{i.qty}</span>
+                                        <span style={{ fontWeight: '500', color: '#334155' }}>{i.name}</span>
+                                    </div>
+                                    <span style={{ fontFamily: fontFamilyMono, color: '#475569' }}>₹{i.price}</span>
                                 </div>
-                                <span className="font-mono text-slate-600">₹{i.price}</span>
+                            ))}
+                            <div style={{ paddingTop: '16px', marginTop: '16px', borderTop: '1px dashed #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 'bold', color: '#0f172a' }}>Total Paid</span>
+                                <span style={{ fontWeight: 'bold', fontSize: '20px', color: '#0f172a' }}>₹{data.amount}</span>
                             </div>
-                        ))}
-                        <div className="pt-4 mt-4 border-t border-dashed border-slate-200 flex justify-between items-center">
-                            <span className="font-bold text-slate-900">Total Paid</span>
-                            <span className="font-bold text-xl text-slate-900">₹{data.amount}</span>
                         </div>
                     </div>
+                )}
+
+                <div style={{ marginTop: '40px' }}>
+                    <a href="#" style={{
+                        display: 'inline-block',
+                        textDecoration: 'none',
+                        color: 'white',
+                        padding: '14px 32px',
+                        borderRadius: '12px',
+                        fontWeight: '600',
+                        fontSize: '14px',
+                        backgroundColor: themeColor,
+                        boxShadow: `0 10px 15px -3px ${themeColor}40`
+                    }}>
+                        {type === 'update' ? 'Read More' : 'Track Order Status'}
+                    </a>
+                </div>
+            </div>
+
+            {/* Optional Components */}
+            {(options?.showSocial || options?.showFooter || options?.showQr) && (
+                <div style={{ backgroundColor: '#f9fafb', padding: '24px', textAlign: 'center', color: '#9ca3af' }}>
+                    {options.showSocial && (
+                        <div style={{ marginBottom: '16px', fontSize: '14px' }}>
+                            <span style={{ margin: '0 8px' }}>Instagram</span> • <span style={{ margin: '0 8px' }}>Twitter</span> • <span style={{ margin: '0 8px' }}>LinkedIn</span>
+                        </div>
+                    )}
+                    {options.showQr && (
+                        <div style={{ padding: '8px', display: 'inline-block', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e5e7eb', marginBottom: '16px' }}>
+                            <div style={{ width: '64px', height: '64px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: '8px' }}>QR CODE</div>
+                        </div>
+                    )}
+                    {options.showFooter && (
+                        <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>© 2026 Snackzo Inc. All rights reserved.</p>
+                    )}
                 </div>
             )}
-
-            <div className="mt-10">
-                <button className="text-white px-8 py-3.5 rounded-xl font-semibold text-sm shadow-xl hover:-translate-y-0.5 transition-all"
-                    style={{ backgroundColor: options?.themeColor || '#0f172a', boxShadow: `0 10px 15px -3px ${options?.themeColor}40` }}>
-                    {type === 'update' ? 'Read More' : 'Track Order Status'}
-                </button>
-            </div>
         </div>
-
-        {/* Optional Components */}
-        {(options?.showSocial || options?.showFooter || options?.showQr) && (
-            <div className="bg-gray-50 p-6 text-center space-y-4">
-                {options.showSocial && (
-                    <div className="flex justify-center gap-4 text-gray-400">
-                        <span>Instagram</span> • <span>Twitter</span> • <span>LinkedIn</span>
-                    </div>
-                )}
-                {options.showQr && (
-                    <div className="pt-2 flex justify-center">
-                        <div className="bg-white p-2 border rounded-lg inline-block">
-                            <div className="w-16 h-16 bg-gray-100 flex items-center justify-center text-gray-400 text-[8px]">QR CODE</div>
-                        </div>
-                    </div>
-                )}
-                {options.showFooter && (
-                    <p className="text-xs text-gray-400">© 2026 Snackzo Inc. All rights reserved.</p>
-                )}
-            </div>
-        )}
-    </div>
-);
+    );
+};
 
 // --- 2. Corporate Fintech ---
 export const CorporateFintech: React.FC<EmailTemplateProps> = ({ type, data }) => (
-    <div className="w-full max-w-[600px] bg-[#f7f9fc] mx-auto font-sans text-[#333] p-10">
-        <div className="bg-white border-t-4 border-blue-600 shadow-sm p-0">
-            {data.bannerUrl && <img src={data.bannerUrl} alt="Banner" className="w-full h-40 object-cover" />}
-            <div className="p-8 border-b border-gray-100 flex justify-between">
-                <span className="font-bold text-blue-600 text-lg">Snackzo</span>
-                <span className="text-sm text-gray-500">{type === 'update' ? 'Official Update' : 'Receipt'}</span>
+    <div style={{ width: '100%', maxWidth: '600px', backgroundColor: '#f7f9fc', margin: '0 auto', fontFamily: fontFamilySans, color: '#333333', padding: '40px' }}>
+        <div style={{ backgroundColor: '#ffffff', borderTop: '4px solid #2563eb', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
+            {data.bannerUrl && <img src={data.bannerUrl} alt="Banner" style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }} />}
+            <div style={{ padding: '32px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 'bold', color: '#2563eb', fontSize: '18px' }}>Snackzo</span>
+                <span style={{ fontSize: '14px', color: '#6b7280' }}>{type === 'update' ? 'Official Update' : 'Receipt'}</span>
             </div>
-            <div className="p-8">
+            <div style={{ padding: '32px' }}>
                 {type === 'update' ? (
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-4">{data.subject}</h2>
-                        <p className="text-gray-600 leading-relaxed">{data.message}</p>
+                        <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', marginBottom: '16px', margin: '0 0 16px 0' }}>{data.subject}</h2>
+                        <p style={{ color: '#4b5563', lineHeight: '1.625', margin: 0 }}>{data.message}</p>
                     </div>
                 ) : (
                     <>
-                        <div className="mb-8">
-                            <p className="text-sm text-gray-500 uppercase tracking-wider text-[10px] font-bold">Amount Paid</p>
-                            <h1 className="text-4xl font-mono mt-1">₹{data.amount}.00</h1>
+                        <div style={{ marginBottom: '32px' }}>
+                            <p style={{ fontSize: '10px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold', margin: '0 0 4px 0' }}>Amount Paid</p>
+                            <h1 style={{ fontSize: '36px', fontFamily: fontFamilyMono, marginTop: '4px', margin: 0 }}>₹{data.amount}.00</h1>
                         </div>
-                        <table className="w-full text-sm border-collapse">
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                             <thead>
-                                <tr className="text-xs text-gray-400 uppercase text-left border-b">
-                                    <th className="font-medium py-2">Description</th>
-                                    <th className="font-medium py-2 text-right">Amount</th>
+                                <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                    <th style={{ textAlign: 'left', fontWeight: '500', padding: '8px 0', color: '#9ca3af', textTransform: 'uppercase', fontSize: '12px' }}>Description</th>
+                                    <th style={{ textAlign: 'right', fontWeight: '500', padding: '8px 0', color: '#9ca3af', textTransform: 'uppercase', fontSize: '12px' }}>Amount</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {data.items?.map((i, idx) => (
-                                    <tr key={idx} className="border-b border-gray-50">
-                                        <td className="py-3">{i.name} x {i.qty}</td>
-                                        <td className="py-3 text-right">₹{i.price.toFixed(2)}</td>
+                                    <tr key={idx} style={{ borderBottom: '1px solid #f9fafb' }}>
+                                        <td style={{ padding: '12px 0' }}>{i.name} x {i.qty}</td>
+                                        <td style={{ padding: '12px 0', textAlign: 'right' }}>₹{i.price.toFixed(2)}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </>
                 )}
-                <div className="mt-8">
-                    <span className="text-blue-600 text-sm hover:underline cursor-pointer">View in Dashboard ↗</span>
+                <div style={{ marginTop: '32px' }}>
+                    <a href="#" style={{ color: '#2563eb', fontSize: '14px', textDecoration: 'none', cursor: 'pointer' }}>View in Dashboard ↗</a>
                 </div>
             </div>
-            <div className="bg-gray-50 p-6 text-xs text-gray-400">
+            <div style={{ backgroundColor: '#f9fafb', padding: '24px', fontSize: '12px', color: '#9ca3af' }}>
                 Questions? Contact support@snackzo.tech
             </div>
         </div>
@@ -190,151 +210,158 @@ export const CorporateFintech: React.FC<EmailTemplateProps> = ({ type, data }) =
 );
 
 // --- 3. Gen Z Vibrant ---
-export const GenZVibrant: React.FC<EmailTemplateProps> = ({ type, data, options }) => (
-    <div className="w-full max-w-[600px] mx-auto font-sans text-black p-8" style={{ backgroundColor: options?.themeColor || '#7c3aed' }}>
-        <div className="bg-white rounded-[20px] overflow-hidden border-4 border-black shadow-[12px_12px_0px_#000000] relative">
-            {data.bannerUrl && <div className="h-48 bg-cover bg-center border-b-4 border-black" style={{ backgroundImage: `url(${data.bannerUrl})` }} />}
+export const GenZVibrant: React.FC<EmailTemplateProps> = ({ type, data, options }) => {
+    const bgColor = options?.themeColor || '#7c3aed';
+    return (
+        <div style={{ width: '100%', maxWidth: '600px', margin: '0 auto', fontFamily: fontFamilySans, color: '#000000', padding: '32px', backgroundColor: bgColor }}>
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '20px', overflow: 'hidden', border: '4px solid #000000', boxShadow: '12px 12px 0px #000000', position: 'relative' }}>
+                {data.bannerUrl && <div style={{ height: '192px', backgroundImage: `url(${data.bannerUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', borderBottom: '4px solid #000000' }} />}
 
-            <div className="bg-[#facc15] p-8 border-b-4 border-black relative overflow-hidden">
-                <div className="absolute top-[-20px] right-[-20px] w-24 h-24 bg-white rounded-full border-4 border-black z-0 opacity-50"></div>
-                <div className="relative z-10">
-                    <span className="bg-black text-white px-3 py-1 text-xs font-black uppercase tracking-widest rounded-full mb-3 inline-block">
-                        {type === 'update' ? 'THE TEA ☕️' : `Order #${data.orderId}`}
-                    </span>
-                    <h1 className="font-black text-4xl leading-[0.9] italic tracking-tighter mb-2">
-                        {type === 'update' ? data.subject?.toUpperCase() : `YOOO ${data.userName?.toUpperCase()}! 👋`}
-                    </h1>
-                    <p className="font-bold text-lg">
-                        {type === 'update' ? "Check this out right now." : "We got the goods. Cooking now. 🍳"}
-                    </p>
-                </div>
-            </div>
-
-            {type === 'order' && (
-                <div className="p-6 border-b-4 border-black bg-white">
-                    <div className="flex justify-between text-xs font-black uppercase mb-2">
-                        <span>Confirmed</span>
-                        <span className="text-[#7c3aed]">Cooking</span>
-                        <span className="text-gray-300">On way</span>
-                    </div>
-                    <div className="h-4 bg-gray-200 rounded-full border-2 border-black overflow-hidden relative">
-                        <div className="absolute top-0 left-0 h-full w-[45%] bg-[#7c3aed] border-r-2 border-black"></div>
+                <div style={{ backgroundColor: '#facc15', padding: '32px', borderBottom: '4px solid #000000', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'relative', zIndex: 10 }}>
+                        <span style={{ backgroundColor: '#000000', color: '#ffffff', padding: '4px 12px', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', borderRadius: '9999px', marginBottom: '12px', display: 'inline-block' }}>
+                            {type === 'update' ? 'THE TEA ☕️' : `Order #${data.orderId}`}
+                        </span>
+                        <h1 style={{ fontWeight: '900', fontSize: '36px', lineHeight: '1', fontStyle: 'italic', letterSpacing: '-0.05em', marginBottom: '8px', margin: '0 0 8px 0' }}>
+                            {type === 'update' ? data.subject?.toUpperCase() : `YOOO ${data.userName?.toUpperCase()}! 👋`}
+                        </h1>
+                        <p style={{ fontWeight: 'bold', fontSize: '18px', margin: 0 }}>
+                            {type === 'update' ? "Check this out right now." : "We got the goods. Cooking now. 🍳"}
+                        </p>
                     </div>
                 </div>
-            )}
 
-            <div className="p-8 bg-white">
-                {type === 'update' ? (
-                    <p className="font-bold text-xl leading-relaxed">{data.message}</p>
-                ) : (
-                    <div className="bg-gray-50 p-6 rounded-xl border-2 border-black border-dashed mb-6">
-                        <h3 className="font-black text-xl mb-4 uppercase">The Stash</h3>
-                        <div className="space-y-3">
-                            {data.items?.map(i => (
-                                <div key={i.name} className="flex justify-between items-center font-bold">
-                                    <div className="flex items-center gap-3">
-                                        <span className="bg-black text-white w-6 h-6 flex items-center justify-center rounded-md text-xs">{i.qty}</span>
-                                        <span>{i.name}</span>
+                {type === 'order' && (
+                    <div style={{ padding: '24px', borderBottom: '4px solid #000000', backgroundColor: '#ffffff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '8px' }}>
+                            <span>Confirmed</span>
+                            <span style={{ color: '#7c3aed' }}>Cooking</span>
+                            <span style={{ color: '#d1d5db' }}>On way</span>
+                        </div>
+                        <div style={{ height: '16px', backgroundColor: '#e5e7eb', borderRadius: '9999px', border: '2px solid #000000', overflow: 'hidden', position: 'relative' }}>
+                            <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '45%', backgroundColor: '#7c3aed', borderRight: '2px solid #000000' }}></div>
+                        </div>
+                    </div>
+                )}
+
+                <div style={{ padding: '32px', backgroundColor: '#ffffff' }}>
+                    {type === 'update' ? (
+                        <p style={{ fontWeight: 'bold', fontSize: '20px', lineHeight: '1.625', margin: 0 }}>{data.message}</p>
+                    ) : (
+                        <div style={{ backgroundColor: '#f9fafb', padding: '24px', borderRadius: '12px', border: '2px dashed #000000', marginBottom: '24px' }}>
+                            <h3 style={{ fontWeight: '900', fontSize: '20px', marginBottom: '16px', textTransform: 'uppercase', margin: '0 0 16px 0' }}>The Stash</h3>
+                            <div style={{ width: '100%' }}>
+                                {data.items?.map((i, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', marginBottom: '12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <span style={{ backgroundColor: '#000000', color: '#ffffff', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', fontSize: '12px', marginRight: '12px' }}>{i.qty}</span>
+                                            <span>{i.name}</span>
+                                        </div>
+                                        <span>₹{i.price}</span>
                                     </div>
-                                    <span>₹{i.price}</span>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
-            <div className="bg-black p-4 text-center">
-                {options?.showSocial && (
-                    <div className="flex justify-center gap-4 text-white text-xs uppercase font-black mb-4 tracking-widest">
-                        <span>IG</span> • <span>TW</span> • <span>YT</span>
-                    </div>
-                )}
-                {options?.showQr && (
-                    <div className="mb-4 flex justify-center">
-                        <div className="bg-white p-2 border-4 border-black rotate-3 hover:rotate-0 transition-transform">
-                            <div className="w-16 h-16 bg-black flex items-center justify-center text-white text-[8px] font-mono">SCAN</div>
+                    )}
+                </div>
+                <div style={{ backgroundColor: '#000000', padding: '16px', textAlign: 'center', color: '#ffffff' }}>
+                    {options?.showSocial && (
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.1em' }}>
+                            <span style={{ margin: '0 8px' }}>IG</span> • <span style={{ margin: '0 8px' }}>TW</span> • <span style={{ margin: '0 8px' }}>YT</span>
                         </div>
-                    </div>
-                )}
-                <p className="text-white text-xs font-bold uppercase tracking-widest">Stay Hungry • Snackzo inc.</p>
-                {options?.showFooter && <p className="text-white/50 text-[10px] mt-2 font-mono">ALL RIGHTS RESERVED 2026</p>}
+                    )}
+                    {options?.showQr && (
+                        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                            <div style={{ backgroundColor: '#ffffff', padding: '8px', border: '4px solid #000000', transform: 'rotate(3deg)', display: 'inline-block' }}>
+                                <div style={{ width: '64px', height: '64px', backgroundColor: '#000000', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontSize: '8px', fontFamily: fontFamilyMono }}>SCAN</div>
+                            </div>
+                        </div>
+                    )}
+                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Stay Hungry • Snackzo inc.</p>
+                    {options?.showFooter && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', marginTop: '8px', fontFamily: fontFamilyMono, margin: '8px 0 0 0' }}>ALL RIGHTS RESERVED 2026</p>}
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 // --- 4. Digital Receipt (Thermal) ---
 export const PaperReceipt: React.FC<EmailTemplateProps> = ({ type, data }) => (
-    <div className="w-full max-w-[600px] bg-gray-200 mx-auto font-mono text-gray-800 p-10 flex justify-center">
-        <div className="bg-white w-[380px] p-6 shadow-xl relative text-xs leading-relaxed" style={{ fontFamily: '"Courier Prime", "Courier New", monospace' }}>
-            <div className="text-center pb-4 mb-4 border-b-2 border-black border-dashed">
-                <h2 className="text-3xl font-black tracking-widest mb-2">SNACKZO</h2>
-                <p>GSTIN: 33AABCU9603R1Z</p>
-                <div className="flex justify-between text-[10px] mt-2">
+    <div style={{ width: '100%', maxWidth: '600px', backgroundColor: '#e5e7eb', margin: '0 auto', fontFamily: fontFamilyMono, color: '#1f2937', padding: '40px', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ backgroundColor: '#ffffff', width: '100%', maxWidth: '380px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', position: 'relative', fontSize: '12px', lineHeight: '1.625', margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', paddingBottom: '16px', marginBottom: '16px', borderBottom: '2px dashed #000000' }}>
+                <h2 style={{ fontSize: '30px', fontWeight: '900', letterSpacing: '0.1em', marginBottom: '8px', margin: '0 0 8px 0' }}>SNACKZO</h2>
+                <p style={{ margin: 0 }}>GSTIN: 33AABCU9603R1Z</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '8px' }}>
                     <span>DATE: {data.date || '30/01/26'}</span>
                     <span>TYPE: {type.toUpperCase()}</span>
                 </div>
             </div>
 
             {type === 'update' ? (
-                <div className="py-8 text-center">
-                    <h3 className="text-lg font-bold mb-4 uppercase">{data.subject}</h3>
-                    <p className="text-sm font-medium">{data.message}</p>
+                <div style={{ padding: '32px 0', textAlign: 'center' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px', textTransform: 'uppercase', margin: '0 0 16px 0' }}>{data.subject}</h3>
+                    <p style={{ fontSize: '14px', fontWeight: '500', margin: 0 }}>{data.message}</p>
                 </div>
             ) : (
-                <div className="mb-4">
-                    <div className="flex justify-between font-bold mb-2 text-[10px] uppercase border-b border-black pb-1">
-                        <span className="w-8">QTY</span>
-                        <span className="flex-1">ITEM</span>
-                        <span className="w-12 text-right">AMT</span>
+                <div style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '8px', fontSize: '10px', textTransform: 'uppercase', borderBottom: '1px solid #000000', paddingBottom: '4px' }}>
+                        <span style={{ width: '32px' }}>QTY</span>
+                        <span style={{ flex: 1 }}>ITEM</span>
+                        <span style={{ width: '48px', textAlign: 'right' }}>AMT</span>
                     </div>
-                    {data.items?.map(i => (
-                        <div key={i.name} className="flex justify-between mb-1">
-                            <span className="w-8">{i.qty}</span>
-                            <span className="flex-1">{i.name.toUpperCase()}</span>
-                            <span className="w-12 text-right">{i.price.toFixed(2)}</span>
+                    {data.items?.map((i, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ width: '32px' }}>{i.qty}</span>
+                            <span style={{ flex: 1 }}>{i.name.toUpperCase()}</span>
+                            <span style={{ width: '48px', textAlign: 'right' }}>{i.price.toFixed(2)}</span>
                         </div>
                     ))}
-                    <div className="flex justify-between font-black text-lg mt-2 pt-2 border-t border-black">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '18px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #000000' }}>
                         <span>TOTAL</span>
                         <span>₹{data.amount?.toFixed(2)}</span>
                     </div>
                 </div>
             )}
 
-            <div className="mt-6 mb-2 h-12 bg-gray-900 w-full opacity-80 flex items-center justify-center">
-                <span className="text-white text-[10px] tracking-[5px]">* SNACKZO *</span>
+            <div style={{ marginTop: '24px', marginBottom: '8px', height: '48px', backgroundColor: '#111827', width: '100%', opacity: '0.8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ color: '#ffffff', fontSize: '10px', letterSpacing: '5px' }}>* SNACKZO *</span>
             </div>
-            <div className="absolute bottom-[-6px] left-0 w-full h-[6px] bg-transparent bg-[radial-gradient(circle,white_3px,transparent_4px)] bg-[length:10px_10px] rotate-180"></div>
+            {/* Dashed line footer instead of zigzag for email safety */}
+            <div style={{ borderTop: '2px dashed #000000', width: '100%', marginTop: '8px' }}></div>
         </div>
     </div>
 );
 
 // --- 5. Dark Mode Premium ---
 export const DarkModePremium: React.FC<EmailTemplateProps> = ({ type, data }) => (
-    <div className="w-full max-w-[600px] bg-[#09090b] mx-auto font-sans text-white p-8">
-        <div className="border border-white/10 rounded-2xl overflow-hidden bg-[#18181b]">
-            {data.bannerUrl && <img src={data.bannerUrl} className="w-full h-48 object-cover opacity-80" />}
-            <div className="bg-gradient-to-r from-purple-900 to-indigo-900 p-8 text-center">
-                <h1 className="text-2xl font-bold">{type === 'update' ? data.subject : "Order Confirmed"}</h1>
+    <div style={{ width: '100%', maxWidth: '600px', backgroundColor: '#09090b', margin: '0 auto', fontFamily: fontFamilySans, color: '#ffffff', padding: '32px' }}>
+        <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#18181b' }}>
+            {data.bannerUrl && <img src={data.bannerUrl} style={{ width: '100%', height: '192px', objectFit: 'cover', opacity: '0.8', display: 'block' }} />}
+            <div style={{ background: 'linear-gradient(to right, #4c1d95, #312e81)', padding: '32px', textAlign: 'center' }}>
+                <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: 'white' }}>{type === 'update' ? data.subject : "Order Confirmed"}</h1>
             </div>
-            <div className="p-8 space-y-4">
+            <div style={{ padding: '32px' }}>
                 {type === 'update' ? (
-                    <p className="text-gray-300 leading-relaxed text-center">{data.message}</p>
+                    <p style={{ color: '#d1d5db', lineHeight: '1.625', textAlign: 'center', margin: 0 }}>{data.message}</p>
                 ) : (
-                    data.items?.map(i => (
-                        <div key={i.name} className="flex justify-between items-center bg-white/5 p-4 rounded-lg border border-white/5">
-                            <div>
-                                <p className="font-medium">{i.name}</p>
-                                <p className="text-xs text-white/40">Qty: {i.qty}</p>
+                    <div style={{ width: '100%' }}>
+                        {data.items?.map((i, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '12px' }}>
+                                <div>
+                                    <p style={{ fontWeight: '500', margin: '0 0 4px 0' }}>{i.name}</p>
+                                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>Qty: {i.qty}</p>
+                                </div>
+                                <p style={{ fontFamily: fontFamilyMono, margin: 0 }}>₹{i.price}</p>
                             </div>
-                            <p className="font-mono">₹{i.price}</p>
-                        </div>
-                    ))
+                        ))}
+                    </div>
                 )}
-                <button className="w-full py-4 mt-4 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition">
-                    Access Dashboard
-                </button>
+                <div style={{ marginTop: '16px' }}>
+                    <a href="#" style={{ display: 'block', width: '100%', paddingTop: '16px', paddingBottom: '16px', backgroundColor: '#ffffff', color: '#000000', fontWeight: 'bold', borderRadius: '8px', textAlign: 'center', textDecoration: 'none' }}>
+                        Access Dashboard
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -342,32 +369,32 @@ export const DarkModePremium: React.FC<EmailTemplateProps> = ({ type, data }) =>
 
 // --- 6. Luxury Concierge ---
 export const LuxuryConcierge: React.FC<EmailTemplateProps> = ({ type, data }) => (
-    <div className="w-full max-w-[600px] bg-[#fdfdfd] mx-auto font-serif text-[#1a1a1a] p-12 border">
-        <div className="text-center mb-16">
-            <span className="uppercase tracking-[0.3em] text-xs text-gray-400">Snackzo Private</span>
-            <div className="w-px h-12 bg-gray-200 mx-auto my-6"></div>
-            <h1 className="text-4xl italic font-light">{type === 'update' ? 'An Invitation' : 'Order Confirmed'}</h1>
+    <div style={{ width: '100%', maxWidth: '600px', backgroundColor: '#fdfdfd', margin: '0 auto', fontFamily: fontFamilySerif, color: '#1a1a1a', padding: '48px', border: '1px solid #e5e5e5' }}>
+        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+            <span style={{ textTransform: 'uppercase', letterSpacing: '0.3em', fontSize: '12px', color: '#9ca3af', fontFamily: fontFamilySans }}>Snackzo Private</span>
+            <div style={{ width: '1px', height: '48px', backgroundColor: '#e5e5e5', margin: '24px auto' }}></div>
+            <h1 style={{ fontSize: '36px', fontStyle: 'italic', fontWeight: '300', margin: 0 }}>{type === 'update' ? 'An Invitation' : 'Order Confirmed'}</h1>
         </div>
-        <div className="max-w-xs mx-auto text-center space-y-6">
+        <div style={{ maxWidth: '320px', margin: '0 auto', textAlign: 'center' }}>
             {type === 'update' ? (
                 <>
-                    <h2 className="text-xl font-medium">{data.subject}</h2>
-                    <p className="text-sm leading-relaxed text-gray-500 font-sans">{data.message}</p>
+                    <h2 style={{ fontSize: '20px', fontWeight: '500', marginBottom: '16px', margin: '0 0 16px 0' }}>{data.subject}</h2>
+                    <p style={{ fontSize: '14px', lineHeight: '1.625', color: '#6b7280', fontFamily: fontFamilySans, margin: 0 }}>{data.message}</p>
                 </>
             ) : (
                 <>
-                    <p className="text-sm leading-relaxed text-gray-500 font-sans">
+                    <p style={{ fontSize: '14px', lineHeight: '1.625', color: '#6b7280', fontFamily: fontFamilySans, margin: '0 0 32px 0' }}>
                         We are pleased to confirm your selection, {data.userName}.
                     </p>
-                    <div className="py-8 border-t border-b border-gray-100">
-                        <p className="text-4xl font-light">₹{data.amount}</p>
-                        <p className="text-xs text-gray-400 mt-2 uppercase tracking-widest font-sans">Total Amount</p>
+                    <div style={{ padding: '32px 0', borderTop: '1px solid #f3f4f6', borderBottom: '1px solid #f3f4f6', marginBottom: '32px' }}>
+                        <p style={{ fontSize: '36px', fontWeight: '300', margin: 0 }}>₹{data.amount}</p>
+                        <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '8px', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: fontFamilySans, margin: '8px 0 0 0' }}>Total Amount</p>
                     </div>
                 </>
             )}
-            <button className="text-xs uppercase tracking-widest border-b border-black pb-1 hover:text-gray-600 transition font-sans">
+            <a href="#" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.1em', borderBottom: '1px solid #000000', paddingBottom: '4px', color: '#1a1a1a', textDecoration: 'none', fontFamily: fontFamilySans }}>
                 View Details
-            </button>
+            </a>
         </div>
     </div>
 );
