@@ -7,7 +7,7 @@ import {
     Zap, History as HistoryIcon, Plus, X,
     Terminal, Library, Flame, Utensils, Check, Loader2,
     Cpu, User, MoreHorizontal, Settings, ShieldCheck,
-    Activity, Radio, MessageSquare, Info, Filter, Paperclip, Monitor
+    Activity, Radio, MessageSquare, Info, Filter, Paperclip, Monitor, Eye, Sparkles, Clock, TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +71,70 @@ export default function NotificationCenter() {
         themeColor: undefined
     });
     const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+    const [isSendingTest, setIsSendingTest] = useState(false);
+
+    // Send Test Email Function
+    const handleSendTest = async () => {
+        setIsSendingTest(true);
+        try {
+            // Get current user's email
+            const { data: { user } } = await supabase.auth.getUser();
+            const adminEmail = user?.email;
+
+            if (!adminEmail) {
+                toast.error("Could not get admin email. Please login again.");
+                return;
+            }
+
+            // Get current template data
+            const mockData = (editorData as any)[managerCategory];
+            const templateName = DESIGN_TEMPLATES.find(t => t.id === activeDesignIds[managerCategory])?.name || 'Template';
+
+            // Build simple HTML preview
+            const testHtml = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+                        <h1 style="margin: 0; font-size: 24px;">🧪 Test Email</h1>
+                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Template Preview from Snackzo</p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 30px; border: 1px solid #e9ecef;">
+                        <h2 style="color: #333; margin-top: 0;">Template: ${templateName}</h2>
+                        <p style="color: #666;"><strong>Category:</strong> ${managerCategory.toUpperCase()}</p>
+                        <p style="color: #666;"><strong>Subject:</strong> ${mockData?.subject || 'N/A'}</p>
+                        ${managerCategory === 'update' ? `<p style="color: #666;"><strong>Message:</strong> ${mockData?.message || 'N/A'}</p>` : ''}
+                        <hr style="border: none; border-top: 1px solid #dee2e6; margin: 20px 0;">
+                        <p style="color: #888; font-size: 12px;">Options: Social ${editorOptions.showSocial ? '✓' : '✗'} | Footer ${editorOptions.showFooter ? '✓' : '✗'} | QR ${editorOptions.showQr ? '✓' : '✗'}</p>
+                        <p style="color: #888; font-size: 12px;">Theme Color: ${editorOptions.themeColor || 'Default'}</p>
+                    </div>
+                    <div style="background: #333; color: white; padding: 15px; text-align: center; border-radius: 0 0 12px 12px; font-size: 12px;">
+                        This is a test email from Snackzo Template Studio
+                    </div>
+                </div>
+            `;
+
+            const { error } = await supabase.functions.invoke('send-email', {
+                body: {
+                    to: adminEmail,
+                    subject: `[TEST] ${templateName} - ${managerCategory.toUpperCase()} Template Preview`,
+                    html: testHtml
+                }
+            });
+
+            if (error) throw error;
+
+            toast.success(`Test email sent to ${adminEmail}!`, {
+                description: 'Check your inbox for the preview.',
+                duration: 5000
+            });
+        } catch (err: any) {
+            console.error('Send test failed:', err);
+            toast.error('Failed to send test email', {
+                description: err?.message || 'Please try again'
+            });
+        } finally {
+            setIsSendingTest(false);
+        }
+    };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -418,56 +482,208 @@ export default function NotificationCenter() {
 
                         {activeTab === 'templates' && (
                             <motion.div key="templates" className="flex flex-col h-full bg-muted/10">
-                                {/* Configuration Toolbar */}
-                                <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between shrink-0">
-                                    <div className="flex bg-muted p-1 rounded-lg">
-                                        {(['order', 'payment', 'update'] as const).map(cat => (
-                                            <button key={cat} onClick={() => setManagerCategory(cat)}
-                                                className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all",
-                                                    managerCategory === cat ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground")}>
-                                                {cat.replace('_', ' ')}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Active Template:</span>
-                                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                                            {DESIGN_TEMPLATES.find(t => t.id === activeDesignIds[managerCategory])?.name}
-                                        </Badge>
+                                {/* Enhanced Template Studio Header */}
+                                <div className="px-6 py-5 border-b border-border bg-gradient-to-br from-card via-card to-primary/5 shrink-0 relative overflow-hidden">
+                                    {/* Decorative Background Pattern */}
+                                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none" />
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+                                    <div className="relative">
+                                        {/* Title Row */}
+                                        <div className="flex items-start justify-between mb-5">
+                                            <div>
+                                                <div className="flex items-center gap-3 mb-1">
+                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+                                                        <Library size={20} className="text-primary-foreground" />
+                                                    </div>
+                                                    <div>
+                                                        <h2 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-2">
+                                                            Template Studio
+                                                            <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary border-0">PRO</Badge>
+                                                        </h2>
+                                                        <p className="text-xs text-muted-foreground">Design and customize email templates for all notification types</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full">
+                                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                                    <span className="text-[10px] font-bold text-green-600 uppercase tracking-wide">Live</span>
+                                                </div>
+                                                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+                                                    <Eye size={12} /> Preview All
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {/* Stats Row */}
+                                        <div className="grid grid-cols-4 gap-3 mb-5">
+                                            <div className="bg-card/80 backdrop-blur border border-border rounded-xl p-3 hover:shadow-md transition-shadow">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Templates</span>
+                                                    <Sparkles size={12} className="text-amber-500" />
+                                                </div>
+                                                <p className="text-2xl font-bold text-foreground">{DESIGN_TEMPLATES.length}</p>
+                                                <p className="text-[10px] text-muted-foreground">Available designs</p>
+                                            </div>
+                                            <div className="bg-card/80 backdrop-blur border border-border rounded-xl p-3 hover:shadow-md transition-shadow">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Active</span>
+                                                    <Check size={12} className="text-green-500" />
+                                                </div>
+                                                <p className="text-2xl font-bold text-foreground">3</p>
+                                                <p className="text-[10px] text-muted-foreground">Configured types</p>
+                                            </div>
+                                            <div className="bg-card/80 backdrop-blur border border-border rounded-xl p-3 hover:shadow-md transition-shadow">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Sent Today</span>
+                                                    <TrendingUp size={12} className="text-blue-500" />
+                                                </div>
+                                                <p className="text-2xl font-bold text-foreground">127</p>
+                                                <p className="text-[10px] text-green-600 font-medium">+23% from yesterday</p>
+                                            </div>
+                                            <div className="bg-card/80 backdrop-blur border border-border rounded-xl p-3 hover:shadow-md transition-shadow">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Delivery Rate</span>
+                                                    <Activity size={12} className="text-purple-500" />
+                                                </div>
+                                                <p className="text-2xl font-bold text-foreground">98.5%</p>
+                                                <p className="text-[10px] text-muted-foreground">Excellent score</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Currently Active Templates - Mini Preview Cards */}
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {(['order', 'payment', 'update'] as const).map(cat => {
+                                                const activeTemplate = DESIGN_TEMPLATES.find(t => t.id === activeDesignIds[cat]);
+                                                const isSelected = managerCategory === cat;
+                                                const catColors = {
+                                                    order: { bg: 'from-blue-500 to-blue-600', light: 'bg-blue-100 text-blue-700', icon: '📦' },
+                                                    payment: { bg: 'from-green-500 to-green-600', light: 'bg-green-100 text-green-700', icon: '💳' },
+                                                    update: { bg: 'from-purple-500 to-purple-600', light: 'bg-purple-100 text-purple-700', icon: '📢' }
+                                                };
+                                                return (
+                                                    <div
+                                                        key={cat}
+                                                        onClick={() => setManagerCategory(cat)}
+                                                        className={cn(
+                                                            "group relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300",
+                                                            isSelected
+                                                                ? "bg-gradient-to-br from-primary/5 to-primary/10 border-primary shadow-lg shadow-primary/10 scale-[1.02]"
+                                                                : "bg-card/80 backdrop-blur border-border hover:border-primary/50 hover:shadow-lg"
+                                                        )}
+                                                    >
+                                                        {/* Active Indicator */}
+                                                        {isSelected && (
+                                                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg ring-2 ring-background">
+                                                                <Check size={12} className="text-primary-foreground" />
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex items-start gap-3">
+                                                            {/* Colorful Icon Preview */}
+                                                            <div className={cn(
+                                                                "w-12 h-14 rounded-xl flex items-center justify-center text-2xl bg-gradient-to-br shadow-lg shrink-0",
+                                                                catColors[cat].bg
+                                                            )}>
+                                                                {catColors[cat].icon}
+                                                            </div>
+
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-1.5">
+                                                                    <span className={cn(
+                                                                        "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                                                                        catColors[cat].light
+                                                                    )}>
+                                                                        {cat}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-sm font-bold text-foreground truncate">{activeTemplate?.name}</p>
+                                                                <p className="text-[10px] text-muted-foreground truncate mt-0.5">{activeTemplate?.description}</p>
+
+                                                                {/* Mini Stats */}
+                                                                <div className="flex items-center gap-2 mt-2">
+                                                                    <span className="text-[9px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                                                                        <Clock size={8} className="inline mr-0.5" /> Updated 2h ago
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Bottom Accent */}
+                                                        <div className={cn(
+                                                            "absolute inset-x-0 bottom-0 h-1 rounded-b-2xl transition-all bg-gradient-to-r",
+                                                            isSelected ? catColors[cat].bg + " opacity-100" : "from-transparent to-transparent opacity-0 group-hover:from-primary/30 group-hover:to-primary/10 group-hover:opacity-100"
+                                                        )} />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
-
                                 {/* Content */}
                                 <div className="flex-1 flex overflow-hidden">
                                     {/* Sidebar List (Tabbed) */}
                                     <div className="w-80 border-r border-border bg-card/50 flex flex-col">
                                         <Tabs defaultValue="style" className="w-full flex-1 flex flex-col">
-                                            <div className="p-4 pb-0">
+                                            <div className="p-4 pb-2">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <h3 className="text-sm font-bold text-foreground capitalize">{managerCategory} Template</h3>
+                                                    <Badge variant="secondary" className="text-[9px]">Editing</Badge>
+                                                </div>
                                                 <TabsList className="w-full grid grid-cols-2">
-                                                    <TabsTrigger value="style">Design</TabsTrigger>
-                                                    <TabsTrigger value="content">Content</TabsTrigger>
+                                                    <TabsTrigger value="style" className="text-xs">Design</TabsTrigger>
+                                                    <TabsTrigger value="content" className="text-xs">Content</TabsTrigger>
                                                 </TabsList>
                                             </div>
 
-                                            <TabsContent value="style" className="flex-1 overflow-y-auto p-4 space-y-3 mt-0">
-                                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Available Styles</h3>
-                                                {DESIGN_TEMPLATES.map(t => (
-                                                    <div key={t.id}
-                                                        onClick={() => setActiveDesignIds(prev => ({ ...prev, [managerCategory]: t.id as any }))}
-                                                        className={cn("p-3 rounded-xl border cursor-pointer transition-all",
-                                                            activeDesignIds[managerCategory] === t.id ? "bg-primary/5 border-primary shadow-sm" : "bg-card border-border hover:border-primary/50")}>
-                                                        <div className="font-bold text-sm mb-1 text-foreground">{t.name}</div>
-                                                        <p className="text-[10px] text-muted-foreground leading-tight">{t.description}</p>
-                                                    </div>
-                                                ))}
+                                            <TabsContent value="style" className="flex-1 overflow-y-auto p-4 pt-2 space-y-3 mt-0">
+                                                <div className="space-y-2">
+                                                    {DESIGN_TEMPLATES.map(t => {
+                                                        const isActive = activeDesignIds[managerCategory] === t.id;
+                                                        return (
+                                                            <div key={t.id}
+                                                                onClick={() => setActiveDesignIds(prev => ({ ...prev, [managerCategory]: t.id as any }))}
+                                                                className={cn(
+                                                                    "p-3 rounded-xl border-2 cursor-pointer transition-all group relative",
+                                                                    isActive
+                                                                        ? "bg-primary/5 border-primary shadow-md"
+                                                                        : "bg-card border-border hover:border-primary/50 hover:shadow-sm"
+                                                                )}>
+                                                                <div className="flex items-start gap-3">
+                                                                    {/* Template Icon */}
+                                                                    <div className={cn(
+                                                                        "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                                                                        isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                                                                    )}>
+                                                                        <Mail size={16} />
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="font-bold text-sm text-foreground">{t.name}</span>
+                                                                            {isActive && <Check size={12} className="text-primary" />}
+                                                                        </div>
+                                                                        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{t.description}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
 
-                                                <div className="pt-6 border-t border-border mt-6">
-                                                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Quick Snippets</h3>
+                                                <div className="pt-4 border-t border-border mt-4">
+                                                    <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                        <Zap size={10} />
+                                                        Quick Snippets
+                                                    </h4>
                                                     <div className="space-y-2">
                                                         {MESSAGE_SNIPPETS.map(s => (
                                                             <div key={s.id} onClick={() => { setMessage(s.content); setActiveTab('compose'); }}
-                                                                className="p-2 bg-card border border-border rounded-lg text-[10px] hover:border-foreground cursor-pointer transition-all">
-                                                                <span className="font-bold block mb-1 text-foreground">{s.title}</span>
+                                                                className="p-2.5 bg-muted/50 border border-transparent rounded-lg text-[10px] hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-all group">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    {s.icon}
+                                                                    <span className="font-bold text-foreground">{s.title}</span>
+                                                                </div>
                                                                 <span className="text-muted-foreground line-clamp-2">{s.content}</span>
                                                             </div>
                                                         ))}
@@ -475,59 +691,69 @@ export default function NotificationCenter() {
                                                 </div>
                                             </TabsContent>
 
-                                            <TabsContent value="content" className="flex-1 overflow-y-auto p-4 space-y-6 mt-0">
-                                                <div className="space-y-3">
-                                                    <Label>Subject / Title</Label>
+                                            <TabsContent value="content" className="flex-1 overflow-y-auto p-4 pt-2 space-y-5 mt-0">
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs font-medium">Subject / Title</Label>
                                                     <Input
+                                                        className="h-9"
                                                         value={(editorData as any)[managerCategory]?.subject || "Order Confirmation"}
                                                         onChange={(e) => setEditorData(prev => ({ ...prev, [managerCategory]: { ...(prev as any)[managerCategory], subject: e.target.value } }))}
                                                     />
                                                 </div>
 
                                                 {managerCategory === 'update' && (
-                                                    <div className="space-y-3">
-                                                        <Label>
-                                                            Message Body
-                                                        </Label>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs font-medium">Message Body</Label>
                                                         <Textarea
-                                                            className="min-h-[150px]"
+                                                            className="min-h-[120px] text-sm"
                                                             value={editorData.update.message}
                                                             onChange={(e) => setEditorData(prev => ({ ...prev, update: { ...prev.update, message: e.target.value } }))}
                                                         />
                                                     </div>
                                                 )}
 
-                                                <div className="space-y-4 pt-4 border-t border-border">
-                                                    <Label className="uppercase text-xs text-muted-foreground tracking-widest font-bold">Components</Label>
-                                                    <div className="flex items-center justify-between">
-                                                        <Label className="font-normal">Social Links</Label>
-                                                        <Switch checked={editorOptions.showSocial} onCheckedChange={c => setEditorOptions(prev => ({ ...prev, showSocial: c }))} />
-                                                    </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <Label className="font-normal">Footer Info</Label>
-                                                        <Switch checked={editorOptions.showFooter} onCheckedChange={c => setEditorOptions(prev => ({ ...prev, showFooter: c }))} />
-                                                    </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <Label className="font-normal">QR Code</Label>
-                                                        <Switch checked={editorOptions.showQr} onCheckedChange={c => setEditorOptions(prev => ({ ...prev, showQr: c }))} />
-                                                    </div>
-
-                                                    <div className="space-y-3 pt-4 border-t border-border">
-                                                        <Label className="uppercase text-xs text-muted-foreground tracking-widest font-bold">Theme</Label>
-                                                        <div className="flex gap-2 flex-wrap">
-                                                            {['#2563eb', '#ef4444', '#db2777', '#7c3aed', '#059669', '#ea580c', '#0f172a'].map(c => (
-                                                                <div key={c}
-                                                                    className={cn("w-6 h-6 rounded-full cursor-pointer ring-2 ring-offset-2 ring-offset-card transition-all",
-                                                                        editorOptions.themeColor === c ? "ring-foreground scale-110" : "ring-transparent hover:scale-105")}
-                                                                    style={{ backgroundColor: c }}
-                                                                    onClick={() => setEditorOptions(prev => ({ ...prev, themeColor: c }))}
-                                                                />
-                                                            ))}
-                                                            <div className="w-6 h-6 rounded-full border border-dashed border-muted-foreground/50 flex items-center justify-center cursor-pointer hover:border-foreground"
-                                                                title="Reset Color"
-                                                                onClick={() => setEditorOptions(prev => ({ ...prev, themeColor: undefined }))}>
-                                                                <X size={10} />
+                                                <div className="space-y-3 pt-3 border-t border-border">
+                                                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Components</Label>
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                                                            <div className="flex items-center gap-2">
+                                                                <Globe size={14} className="text-muted-foreground" />
+                                                                <Label className="font-normal text-xs cursor-pointer">Social Links</Label>
                                                             </div>
+                                                            <Switch checked={editorOptions.showSocial} onCheckedChange={c => setEditorOptions(prev => ({ ...prev, showSocial: c }))} />
+                                                        </div>
+                                                        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                                                            <div className="flex items-center gap-2">
+                                                                <Info size={14} className="text-muted-foreground" />
+                                                                <Label className="font-normal text-xs cursor-pointer">Footer Info</Label>
+                                                            </div>
+                                                            <Switch checked={editorOptions.showFooter} onCheckedChange={c => setEditorOptions(prev => ({ ...prev, showFooter: c }))} />
+                                                        </div>
+                                                        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                                                            <div className="flex items-center gap-2">
+                                                                <Activity size={14} className="text-muted-foreground" />
+                                                                <Label className="font-normal text-xs cursor-pointer">QR Code</Label>
+                                                            </div>
+                                                            <Switch checked={editorOptions.showQr} onCheckedChange={c => setEditorOptions(prev => ({ ...prev, showQr: c }))} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-3 pt-3 border-t border-border">
+                                                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Theme Color</Label>
+                                                    <div className="flex gap-2 flex-wrap">
+                                                        {['#2563eb', '#ef4444', '#db2777', '#7c3aed', '#059669', '#ea580c', '#0f172a'].map(c => (
+                                                            <div key={c}
+                                                                className={cn("w-7 h-7 rounded-full cursor-pointer ring-2 ring-offset-2 ring-offset-card transition-all hover:scale-110",
+                                                                    editorOptions.themeColor === c ? "ring-foreground scale-110" : "ring-transparent")}
+                                                                style={{ backgroundColor: c }}
+                                                                onClick={() => setEditorOptions(prev => ({ ...prev, themeColor: c }))}
+                                                            />
+                                                        ))}
+                                                        <div className="w-7 h-7 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-foreground transition-colors"
+                                                            title="Reset Color"
+                                                            onClick={() => setEditorOptions(prev => ({ ...prev, themeColor: undefined }))}>
+                                                            <X size={12} className="text-muted-foreground" />
                                                         </div>
                                                     </div>
                                                 </div>
@@ -535,22 +761,33 @@ export default function NotificationCenter() {
                                         </Tabs>
                                     </div>
 
-                                    {/* Preview Area */}
                                     {/* Preview Area (Device Simulator) */}
                                     <div className="flex-1 bg-muted/20 relative flex flex-col h-full overflow-hidden">
                                         {/* Simulator Toolbar */}
                                         <div className="h-12 border-b border-border bg-card/50 backdrop-blur flex items-center justify-between px-4 shrink-0 z-10">
-                                            <div className="flex bg-muted/50 p-1 rounded-lg border border-border gap-1">
-                                                <Button variant="ghost" size="icon" className={cn("h-7 w-7 rounded-md", previewDevice === 'desktop' && "bg-background shadow-sm text-primary")} onClick={() => setPreviewDevice('desktop')}>
-                                                    <Monitor size={14} />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className={cn("h-7 w-7 rounded-md", previewDevice === 'mobile' && "bg-background shadow-sm text-primary")} onClick={() => setPreviewDevice('mobile')}>
-                                                    <Smartphone size={14} />
-                                                </Button>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex bg-muted/50 p-1 rounded-lg border border-border gap-1">
+                                                    <Button variant="ghost" size="icon" className={cn("h-7 w-7 rounded-md", previewDevice === 'desktop' && "bg-background shadow-sm text-primary")} onClick={() => setPreviewDevice('desktop')}>
+                                                        <Monitor size={14} />
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" className={cn("h-7 w-7 rounded-md", previewDevice === 'mobile' && "bg-background shadow-sm text-primary")} onClick={() => setPreviewDevice('mobile')}>
+                                                        <Smartphone size={14} />
+                                                    </Button>
+                                                </div>
+                                                <span className="text-[10px] text-muted-foreground">
+                                                    {previewDevice === 'desktop' ? '600px Desktop' : '375px Mobile'}
+                                                </span>
                                             </div>
                                             <div className="flex gap-3 items-center">
-                                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" onClick={() => toast.success("Test message sent to admin!")}>
-                                                    <Send size={12} /> Send Test
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 text-xs gap-1.5 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+                                                    onClick={handleSendTest}
+                                                    disabled={isSendingTest}
+                                                >
+                                                    {isSendingTest ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                                    {isSendingTest ? 'Sending...' : 'Send Test'}
                                                 </Button>
                                                 <div className="h-4 w-px bg-border mx-1"></div>
                                                 <span className="text-[10px] font-mono text-muted-foreground uppercase opacity-50 flex items-center gap-1">
