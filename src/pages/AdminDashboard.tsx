@@ -30,6 +30,7 @@ import FeedbackManager from "@/components/admin/FeedbackManager";
 import BannerManager from "@/components/admin/BannerManager";
 import StorageManager from "@/components/admin/StorageManager";
 import SecurityDashboard from "@/pages/admin/SecurityDashboard";
+import QrCodeStudio from "@/components/admin/QrCodeStudio";
 
 import { AdminSidebar, AdminTab } from "@/components/admin/AdminSidebar";
 
@@ -622,6 +623,7 @@ const AdminDashboard = () => {
           {activeTab === "feedback" && <FeedbackManager />}
           {activeTab === "security" && <SecurityDashboard />}
           {activeTab === "storage" && <StorageManager />}
+          {activeTab === "qr_code" && <QrCodeStudio />}
 
         </div>
       </main>

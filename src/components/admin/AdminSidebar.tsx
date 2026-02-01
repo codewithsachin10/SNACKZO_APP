@@ -1,7 +1,7 @@
 import {
     LayoutDashboard, ShoppingBag, Package, List, Truck,
     BarChart3, LineChart, Users, TrendingUp, Zap, Mail,
-    Bell, Wallet, AlertTriangle, Settings, LogOut, ToggleRight, Activity, HelpCircle, Database, CreditCard, Shield, Folder
+    Bell, Wallet, AlertTriangle, Settings, LogOut, ToggleRight, Activity, HelpCircle, Database, CreditCard, Shield, Folder, QrCode
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,8 @@ export type AdminTab =
     | "feedback"
     | "banners"
     | "security"
-    | "storage";
+    | "storage"
+    | "qr_code";
 
 interface AdminSidebarProps {
     activeTab: AdminTab;
@@ -57,6 +58,7 @@ const menuItems: { id: AdminTab; label: string; icon: any; badge?: string }[] = 
     { id: "advanced-analytics", label: "Advanced", icon: LineChart },
     { id: "users", label: "Users", icon: Users },
     { id: "customer-insights", label: "Insights", icon: TrendingUp },
+    { id: "qr_code", label: "QR Studio", icon: QrCode, badge: "NEW" },
     { id: "promotions", label: "Promos", icon: Zap },
     { id: "announcements", label: "Notify", icon: Bell },
     { id: "live-chat", label: "Live Chat", icon: HelpCircle, badge: "NEW" },
