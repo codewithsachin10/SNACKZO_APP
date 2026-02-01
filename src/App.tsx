@@ -40,6 +40,7 @@ import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 import OfflinePage from "./pages/OfflinePage";
 import EmailPreviews from "./pages/EmailPreviews";
+import QrRedirect from "./pages/QrRedirect";
 import { ThemeProvider } from "./components/ThemeProvider";
 // New Feature Pages
 import GroupOrdering from "./pages/GroupOrdering";
@@ -120,6 +121,9 @@ const AppRoutes = () => {
         {/* Public Trust Page */}
         <Route path="/security" element={<SecurityTrust />} />
         <Route path="/email-previews" element={<EmailPreviews />} />
+
+        {/* QR Redirection */}
+        <Route path="/q/:code" element={<QrRedirect />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
