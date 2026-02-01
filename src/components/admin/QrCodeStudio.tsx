@@ -17,6 +17,7 @@ interface QrStyle {
     bgColor: string;
     logo: boolean;
     size: number;
+    logoSize: number;
     level: "L" | "M" | "Q" | "H";
 }
 
@@ -60,6 +61,7 @@ const QrCodeStudio = () => {
         bgColor: "#ffffff",
         logo: true,
         size: 300,
+        logoSize: 40,
         level: "H"
     });
 
@@ -310,8 +312,8 @@ const QrCodeStudio = () => {
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
                                         className={`flex-1 min-w-[100px] flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold transition-all ${activeTab === tab.id
-                                                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                                                : "hover:bg-background text-muted-foreground hover:text-foreground"
+                                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                            : "hover:bg-background text-muted-foreground hover:text-foreground"
                                             }`}
                                     >
                                         <tab.icon size={18} />
@@ -407,6 +409,20 @@ const QrCodeStudio = () => {
                                             <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${style.logo ? "left-7" : "left-1"}`} />
                                         </button>
                                     </div>
+
+                                    {style.logo && (
+                                        <div className="flex items-center gap-3 flex-1">
+                                            <input
+                                                type="range"
+                                                min="20"
+                                                max="80"
+                                                value={style.logoSize}
+                                                onChange={(e) => setStyle({ ...style, logoSize: parseInt(e.target.value) })}
+                                                className="w-full accent-primary h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+                                            />
+                                            <span className="text-xs font-bold w-8">{style.logoSize}px</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -426,7 +442,7 @@ const QrCodeStudio = () => {
                                             bgColor={style.bgColor}
                                             level={style.level}
                                             includeMargin={true}
-                                            imageSettings={style.logo ? { src: "/logo.png", x: undefined, y: undefined, height: 40, width: 40, excavate: true } : undefined}
+                                            imageSettings={style.logo ? { src: "/logo.png", x: undefined, y: undefined, height: style.logoSize, width: style.logoSize, excavate: true } : undefined}
                                         />
                                     </div>
 
@@ -441,18 +457,18 @@ const QrCodeStudio = () => {
                                     <button onClick={() => handleDownload("png")} className="bg-card hover:bg-muted border border-border text-foreground font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
                                         <Download size={18} /> Download
                                     </button>
-                                    <button onClick={() => { setStyle({ fgColor: "#000000", bgColor: "#ffffff", logo: true, size: 300, level: "H" }); toast.success("Reset"); }} className="bg-card hover:bg-muted border border-border text-foreground font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                                    <button onClick={() => { setStyle({ fgColor: "#000000", bgColor: "#ffffff", logo: true, size: 300, logoSize: 40, level: "H" }); toast.success("Reset"); }} className="bg-card hover:bg-muted border border-border text-foreground font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
                                         <RefreshCw size={18} /> Reset
                                     </button>
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
+                    </motion.div >
                 )}
-            </AnimatePresence>
+            </AnimatePresence >
 
             {/* LIST MODE */}
-            <AnimatePresence mode="wait">
+            < AnimatePresence mode="wait" >
                 {viewMode === "list" && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -482,8 +498,8 @@ const QrCodeStudio = () => {
                                                 <h4 className="font-bold text-lg">{qr.name}</h4>
                                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                     <span className={`px-2 py-0.5 rounded-full font-bold uppercase ${qr.type === 'dynamic' ? 'bg-purple-500/10 text-purple-500' :
-                                                            qr.type === 'temporary' ? 'bg-amber-500/10 text-amber-500' :
-                                                                'bg-muted text-muted-foreground'
+                                                        qr.type === 'temporary' ? 'bg-amber-500/10 text-amber-500' :
+                                                            'bg-muted text-muted-foreground'
                                                         }`}>{qr.type}</span>
                                                     <span>• {new Date(qr.created_at).toLocaleDateString()}</span>
                                                 </div>
@@ -533,10 +549,10 @@ const QrCodeStudio = () => {
                         </div>
                     </motion.div>
                 )}
-            </AnimatePresence>
+            </AnimatePresence >
 
             {/* EDIT MODAL */}
-            <Dialog open={!!editingQr} onOpenChange={(o) => !o && setEditingQr(null)}>
+            < Dialog open={!!editingQr} onOpenChange={(o) => !o && setEditingQr(null)}>
                 <DialogContent className="max-w-xl bg-card border-white/10">
                     <DialogHeader>
                         <DialogTitle>Edit QR Code</DialogTitle>
@@ -564,7 +580,8 @@ const QrCodeStudio = () => {
                                     bgColor={editingQr.settings?.bgColor}
                                     level="H"
                                     includeMargin={true}
-                                    imageSettings={editingQr.settings?.logo ? { src: "/logo.png", x: undefined, y: undefined, height: 30, width: 30, excavate: true } : undefined}
+
+                                    imageSettings={editingQr.settings?.logo ? { src: "/logo.png", x: undefined, y: undefined, height: editingQr.settings?.logoSize || 40, width: editingQr.settings?.logoSize || 40, excavate: true } : undefined}
                                 />
                             </div>
 
@@ -579,8 +596,8 @@ const QrCodeStudio = () => {
                         </div>
                     )}
                 </DialogContent>
-            </Dialog>
-        </div>
+            </Dialog >
+        </div >
     );
 };
 

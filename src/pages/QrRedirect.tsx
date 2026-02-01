@@ -43,13 +43,18 @@ const QrRedirect = () => {
                 }
 
                 // Redirect
-                // Check if target_url is relative or absolute
                 let target = data.target_url;
-                if (!target.startsWith("http") && !target.startsWith("/")) {
-                    target = "https://" + target;
-                }
 
-                window.location.href = target;
+                // If it's an internal link (valid relative path), use SPA navigation
+                if (target.startsWith("/")) {
+                    navigate(target);
+                } else {
+                    // Normalize external links
+                    if (!target.startsWith("http")) {
+                        target = "https://" + target;
+                    }
+                    window.location.href = target;
+                }
             } catch (err) {
                 setError("An unexpected error occurred");
             }
