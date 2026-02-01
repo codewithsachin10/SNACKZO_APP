@@ -122,12 +122,18 @@ const QrCodeStudio = () => {
 
         let content = "";
 
-        if (activeTab === "url") content = url;
+        if (activeTab === "url") {
+            content = url;
+            // Smart URL Fixer
+            if (content && content.length > 3 && !content.startsWith("http://") && !content.startsWith("https://") && content.includes(".")) {
+                content = "https://" + content;
+            }
+        }
         else if (activeTab === "product") content = selectedProduct ? `${window.location.origin}/products/${selectedProduct}` : window.location.origin;
         else if (activeTab === "wifi") content = `WIFI:S:${wifiSSID};T:WPA;P:${wifiPass};H:${wifiHidden};;`;
         else if (activeTab === "text") content = text;
 
-        setValue(content);
+        setValue(content || "https://snackzo.tech");
     };
 
     const saveQrCode = async () => {
@@ -137,8 +143,14 @@ const QrCodeStudio = () => {
         }
 
         // 1. Determine Target URL
+        // 1. Determine Target URL
         let targetUrl = "";
-        if (activeTab === "url") targetUrl = url;
+        if (activeTab === "url") {
+            targetUrl = url;
+            if (targetUrl && targetUrl.length > 3 && !targetUrl.startsWith("http://") && !targetUrl.startsWith("https://") && targetUrl.includes(".")) {
+                targetUrl = "https://" + targetUrl;
+            }
+        }
         else if (activeTab === "product") targetUrl = selectedProduct ? `/products/${selectedProduct}` : "/";
         else if (activeTab === "wifi") targetUrl = `WIFI:S:${wifiSSID};T:WPA;P:${wifiPass};H:${wifiHidden};;`;
         else if (activeTab === "text") targetUrl = text;
