@@ -206,9 +206,9 @@ const DatabaseManager = () => {
     // Known tables in the app
     const KNOWN_TABLES = [
         'profiles', 'products', 'categories', 'orders', 'order_items',
-        'runners', 'reviews', 'coupons', 'notifications', 'user_roles',
+        'runners', 'reviews', 'notifications', 'user_roles',
         'feature_toggles', 'active_sessions', 'price_alerts', 'referrals',
-        'loyalty_points', 'support_tickets', 'ticket_messages'
+        'support_tickets'
     ];
 
     useEffect(() => {
@@ -406,16 +406,13 @@ const DatabaseManager = () => {
             order_items: "📋",
             runners: "🏃",
             reviews: "⭐",
-            coupons: "🎟️",
             notifications: "🔔",
             user_roles: "🔐",
             feature_toggles: "⚙️",
             active_sessions: "📱",
             price_alerts: "🔔",
             referrals: "🤝",
-            loyalty_points: "💎",
-            support_tickets: "🎫",
-            ticket_messages: "💬"
+            support_tickets: "🎫"
         };
         return icons[name] || "📊";
     };
