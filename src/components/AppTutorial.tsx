@@ -14,14 +14,14 @@ const AppTutorial = () => {
         // Check if we've seen the intro
         const hasSeenIntro = localStorage.getItem("snackzo_intro_seen_v2");
 
-        // Only show for non-logged in users who haven't seen it
-        if (!hasSeenIntro && !user) {
+        // Show for EVERYONE who hasn't seen it (Logged in OR Guest)
+        if (!hasSeenIntro) {
             const timer = setTimeout(() => {
                 setStage('envelope');
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [user]);
+    }, []); // Run once on mount
 
     const handleOpenEnvelope = () => {
         setStage('letter_intro');
@@ -35,65 +35,103 @@ const AppTutorial = () => {
         setStage('idle');
         localStorage.setItem("snackzo_intro_seen_v2", "true");
 
+        // GUEST STEPS (Login/Signup Focus)
+        const guestSteps = [
+            {
+                element: "#nav-brand",
+                popover: {
+                    title: "Welcome to Snackzo! ⚡️",
+                    description: "We deliver your late-night cravings and hostel essentials in minutes.",
+                    side: "bottom",
+                    align: "start"
+                }
+            },
+            {
+                element: "#categories-section",
+                popover: {
+                    title: "Everything You Need 🍔",
+                    description: "From 'Exam Fuel' to 'Late Night Munchies', we've curated everything for hostel life.",
+                    side: "top",
+                    align: "center"
+                }
+            },
+            {
+                element: "#nav-login-btn",
+                popover: {
+                    title: "Get Started 🚀",
+                    description: "Click the **Login** button to see your options.",
+                    side: "bottom",
+                    align: "end",
+                    showButtons: [], // Hide buttons to force interaction
+                },
+                onHighlightStarted: (element: Element) => {
+                    if (!element) return;
+                    const clickHandler = () => {
+                        setTimeout(() => { driverObj.moveNext(); }, 300);
+                        element.removeEventListener('click', clickHandler);
+                    };
+                    element.addEventListener('click', clickHandler);
+                }
+            },
+            {
+                element: "#nav-signup-btn",
+                popover: {
+                    title: "Create Account ✨",
+                    description: "Click here to **Sign Up**! You'll unlock your wallet, order tracking, and more.",
+                    side: "left",
+                    align: "center"
+                }
+            }
+        ];
+
+        // LOGGED IN USER STEPS (Feature Focus)
+        const userSteps = [
+            {
+                element: "#nav-brand",
+                popover: {
+                    title: "Welcome Back! 👋",
+                    description: "Ready to order? We're open and delivering instantly.",
+                    side: "bottom",
+                    align: "start"
+                }
+            },
+            {
+                element: "#nav-address",
+                popover: {
+                    title: "Set Location 📍",
+                    description: "Ensure your **Hostel Block & Room** are correct for hassle-free delivery.",
+                    side: "bottom",
+                    align: "start"
+                }
+            },
+            {
+                element: "#categories-section",
+                popover: {
+                    title: "Find Your Cravings 🔍",
+                    description: "Browse specific categories to find exactly what you need.",
+                    side: "top",
+                    align: "center"
+                }
+            },
+            {
+                element: "#nav-cart",
+                popover: {
+                    title: "Checkout 🛒",
+                    description: "View your cart, apply coupons, and track your order here.",
+                    side: "bottom",
+                    align: "end"
+                }
+            }
+        ];
+
         const driverObj = driver({
             showProgress: true,
             animate: true,
             allowClose: true,
-            doneBtnText: "Got it!",
+            doneBtnText: "Let's Go!",
             nextBtnText: "Next",
             prevBtnText: "Back",
-            steps: [
-                {
-                    element: "#nav-brand",
-                    popover: {
-                        title: "Welcome to Snackzo! ⚡️",
-                        description: "We deliver your late-night cravings and hostel essentials in minutes.",
-                        side: "bottom",
-                        align: "start"
-                    }
-                },
-                {
-                    element: "#categories-section",
-                    popover: {
-                        title: "Everything You Need 🍔",
-                        description: "From 'Exam Fuel' to 'Late Night Munchies', we've curated everything for hostel life.",
-                        side: "top",
-                        align: "center"
-                    }
-                },
-                {
-                    element: "#nav-login-btn",
-                    popover: {
-                        title: "Get Started 🚀",
-                        description: "Click the **Login** button to see your options.",
-                        side: "bottom",
-                        align: "end",
-                        showButtons: [], // Hide buttons to force interaction
-                    },
-                    onHighlightStarted: (element) => {
-                        // Allow user to click the actual element
-                        if (!element) return;
-
-                        // Add a one-time click listener to advance the tour
-                        const clickHandler = () => {
-                            setTimeout(() => {
-                                driverObj.moveNext();
-                            }, 300); // Wait for dropdown animation
-                            element.removeEventListener('click', clickHandler);
-                        };
-                        element.addEventListener('click', clickHandler);
-                    }
-                },
-                {
-                    element: "#nav-signup-btn",
-                    popover: {
-                        title: "Create Account ✨",
-                        description: "Click here to **Sign Up**! You'll unlock your wallet, order tracking, and more.",
-                        side: "left",
-                        align: "center"
-                    }
-                }
-            ]
+            steps: (user ? userSteps : guestSteps) as any
         });
 
         driverObj.drive();

@@ -230,7 +230,7 @@ const Auth = () => {
         .eq('feature_name', 'demo_otp_mode')
         .maybeSingle();
 
-      isDemoMode = demoModeData?.is_enabled ?? true;
+      isDemoMode = demoModeData?.is_enabled ?? false;
     } catch (err) {
       console.log("Feature toggle check failed, using demo mode");
     }

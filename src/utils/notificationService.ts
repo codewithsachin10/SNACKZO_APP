@@ -153,20 +153,35 @@ export const sendWelcomeEmail = async (email: string, name: string) => {
         subject: `Welcome to Snackzo, ${name.split(' ')[0]}! 🍔`,
         message: `Welcome to Snackzo! We're excited to serve you.`,
         html: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #f0f0f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                <div style="background: #7c3aed; padding: 30px; text-align: center;">
-                    <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to Snackzo!</h1>
-                </div>
-                <div style="padding: 30px; color: #333;">
-                    <p style="font-size: 16px; line-height: 1.6;">Hi ${name},</p>
-                    <p style="font-size: 16px; line-height: 1.6;">We're thrilled to have you join our hostel food community. Now you can order your favorite meals, track deliveries in real-time, and enjoy exclusive midnight deals!</p>
-                    <div style="text-align: center; margin: 40px 0;">
-                        <a href="https://snackzo.tech" style="background: #7c3aed; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">Start Ordering Now</a>
-                    </div>
-                    <p style="font-size: 14px; color: #666;">Happy Binging!<br/>Team Snackzo</p>
-                </div>
+        <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+          <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 40px 20px; text-align: center;">
+             <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">Welcome to Snackzo!</h1>
+          </div>
+          
+          <div style="padding: 40px 30px;">
+            <p style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 24px;">
+              Hi ${name},
+            </p>
+            <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 24px;">
+              We're thrilled to have you! You've just joined the fastest way to get your favorite groceries and snacks delivered right to your doorstep.
+            </p>
+            <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 32px;">
+              Experience lightning-fast delivery, real-time tracking, and exclusive deals crafted just for you.
+            </p>
+            
+            <div style="text-align: center; margin-bottom: 32px;">
+              <a href="https://snackzo.tech" style="background-color: #8b5cf6; color: white; padding: 14px 32px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);">
+                Start Ordering Now
+              </a>
             </div>
-        `
+            
+            <p style="font-size: 14px; color: #888; margin-top: 40px; text-align: center;">
+              Happy Shopping!<br>
+              Team Snackzo
+            </p>
+          </div>
+        </div>
+      `
     });
     toast.success("Welcome email sent!", { description: "Please check your inbox (and spam folder) to start your journey! 🍔" });
     return result;
