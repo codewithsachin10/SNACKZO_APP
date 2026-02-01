@@ -1,4 +1,6 @@
+
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { triggerSuccessCelebration, sendNotification } from "@/utils/notificationService";
@@ -92,7 +94,7 @@ export default function NotificationCenter() {
             localStorage.setItem('snackzo_email_templates', JSON.stringify(newSaved));
 
             // Also save editor options per category
-            const optionsKey = `snackzo_template_options_${managerCategory}`;
+            const optionsKey = `snackzo_template_options_${managerCategory} `;
             localStorage.setItem(optionsKey, JSON.stringify(editorOptions));
 
             // Simulate a brief delay for UX
@@ -123,44 +125,62 @@ export default function NotificationCenter() {
                 return;
             }
 
-            // Get current template data
+            // Get current template data & component
             const mockData = (editorData as any)[managerCategory];
-            const templateName = DESIGN_TEMPLATES.find(t => t.id === activeDesignIds[managerCategory])?.name || 'Template';
+            const activeTemplateId = activeDesignIds[managerCategory];
+            const activeTemplateDef = DESIGN_TEMPLATES.find(t => t.id === activeTemplateId);
+            const ActiveComponent = activeTemplateDef?.component;
 
-            // Build simple HTML preview
-            const testHtml = `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-                        <h1 style="margin: 0; font-size: 24px;">🧪 Test Email</h1>
-                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Template Preview from Snackzo</p>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 30px; border: 1px solid #e9ecef;">
-                        <h2 style="color: #333; margin-top: 0;">Template: ${templateName}</h2>
-                        <p style="color: #666;"><strong>Category:</strong> ${managerCategory.toUpperCase()}</p>
-                        <p style="color: #666;"><strong>Subject:</strong> ${mockData?.subject || 'N/A'}</p>
-                        ${managerCategory === 'update' ? `<p style="color: #666;"><strong>Message:</strong> ${mockData?.message || 'N/A'}</p>` : ''}
-                        <hr style="border: none; border-top: 1px solid #dee2e6; margin: 20px 0;">
-                        <p style="color: #888; font-size: 12px;">Options: Social ${editorOptions.showSocial ? '✓' : '✗'} | Footer ${editorOptions.showFooter ? '✓' : '✗'} | QR ${editorOptions.showQr ? '✓' : '✗'}</p>
-                        <p style="color: #888; font-size: 12px;">Theme Color: ${editorOptions.themeColor || 'Default'}</p>
-                    </div>
-                    <div style="background: #333; color: white; padding: 15px; text-align: center; border-radius: 0 0 12px 12px; font-size: 12px;">
-                        This is a test email from Snackzo Template Studio
-                    </div>
+            if (!ActiveComponent) {
+                toast.error("Template component not found.");
+                return;
+            }
+
+            // RENDER ACTUAL TEMPLATE TO HTML
+            // This converts the React component visualization directly into an HTML string for the email
+            const emailHtml = renderToStaticMarkup(
+                <ActiveComponent
+                    type={managerCategory}
+                    data={mockData}
+                    options={editorOptions}
+                />
+            );
+
+            // Wrap in a basic DOCTYPE/html structure for email clients
+            const finalHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>${activeTemplateDef.name}</title>
+                <style>
+                    /* Reset & Base */
+                    body { margin: 0; padding: 0; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+                    img { border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+                </style>
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #f3f4f6;">
+                ${emailHtml}
+                <div style="text-align: center; font-size: 10px; color: #9ca3af; padding: 20px;">
+                    Sent via Snackzo Template Studio • ${new Date().toLocaleTimeString()}
                 </div>
+            </body>
+            </html>
             `;
 
             const { error } = await supabase.functions.invoke('send-email', {
                 body: {
                     to: adminEmail,
-                    subject: `[TEST] ${templateName} - ${managerCategory.toUpperCase()} Template Preview`,
-                    html: testHtml
+                    subject: `[PREVIEW] ${mockData?.subject || activeTemplateDef.name}`,
+                    html: finalHtml
                 }
             });
 
             if (error) throw error;
 
-            toast.success(`Test email sent to ${adminEmail}!`, {
-                description: 'Check your inbox for the preview.',
+            toast.success(`Visual template sent to ${adminEmail}!`, {
+                description: 'The actual design has been sent to your inbox.',
                 duration: 5000
             });
         } catch (err: any) {
@@ -268,7 +288,7 @@ export default function NotificationCenter() {
                             const base64Content = await convertToBase64(attachment);
                             // Helper removed header "data:application/pdf;base64," if needed or client handles it
                             // For simplicity, we pass the full data URI or strip it based on Edge Function needs.
-                            // Assuming backend expects: { filename: string, content: string (base64) }
+                            // Assuming backend expects: {filename: string, content: string (base64) }
                             // Stripping header usually required for plain base64
                             const content = base64Content.split(',')[1];
                             attachmentsPayload.push({
