@@ -7,7 +7,7 @@ import {
     Zap, History as HistoryIcon, Plus, X,
     Terminal, Library, Flame, Utensils, Check, Loader2,
     Cpu, User, MoreHorizontal, Settings, ShieldCheck,
-    Activity, Radio, MessageSquare, Info, Filter, Paperclip, Monitor, Eye, Sparkles, Clock, TrendingUp
+    Activity, Radio, MessageSquare, Info, Filter, Paperclip, Monitor, Eye, Sparkles, Clock, TrendingUp, Save, Package, CreditCard, Hash, DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +72,43 @@ export default function NotificationCenter() {
     });
     const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
     const [isSendingTest, setIsSendingTest] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [savedTemplates, setSavedTemplates] = useState<Record<string, string>>(() => {
+        // Load saved templates from localStorage on init
+        try {
+            const saved = localStorage.getItem('snackzo_email_templates');
+            return saved ? JSON.parse(saved) : { order: 'modern', payment: 'receipt', update: 'genz' };
+        } catch {
+            return { order: 'modern', payment: 'receipt', update: 'genz' };
+        }
+    });
+
+    // Save Default Template Function
+    const handleSaveDefault = async () => {
+        setIsSaving(true);
+        try {
+            const newSaved = { ...savedTemplates, [managerCategory]: activeDesignIds[managerCategory] };
+            setSavedTemplates(newSaved);
+            localStorage.setItem('snackzo_email_templates', JSON.stringify(newSaved));
+
+            // Also save editor options per category
+            const optionsKey = `snackzo_template_options_${managerCategory}`;
+            localStorage.setItem(optionsKey, JSON.stringify(editorOptions));
+
+            // Simulate a brief delay for UX
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const templateName = DESIGN_TEMPLATES.find(t => t.id === activeDesignIds[managerCategory])?.name;
+            toast.success(`"${templateName}" saved as default for ${managerCategory}!`, {
+                description: 'This template will be used for all future emails.',
+                duration: 4000
+            });
+        } catch (err) {
+            toast.error('Failed to save template');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     // Send Test Email Function
     const handleSendTest = async () => {
@@ -701,6 +738,172 @@ export default function NotificationCenter() {
                                                     />
                                                 </div>
 
+                                                {/* ORDER CONTENT EDITOR */}
+                                                {managerCategory === 'order' && (
+                                                    <>
+                                                        <div className="space-y-4 pt-3 border-t border-border">
+                                                            <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                                                <Package size={10} />
+                                                                Order Details
+                                                            </Label>
+
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-[10px] text-muted-foreground">Order ID</Label>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Hash size={12} className="text-muted-foreground" />
+                                                                        <Input
+                                                                            className="h-8 text-xs"
+                                                                            value={editorData.order.orderId}
+                                                                            onChange={(e) => setEditorData(prev => ({ ...prev, order: { ...prev.order, orderId: e.target.value } }))}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-[10px] text-muted-foreground">Status</Label>
+                                                                    <select
+                                                                        className="w-full h-8 text-xs rounded-md border border-border bg-background px-2"
+                                                                        value={editorData.order.status}
+                                                                        onChange={(e) => setEditorData(prev => ({ ...prev, order: { ...prev.order, status: e.target.value } }))}
+                                                                    >
+                                                                        <option value="confirmed">Confirmed</option>
+                                                                        <option value="preparing">Preparing</option>
+                                                                        <option value="out_for_delivery">Out for Delivery</option>
+                                                                        <option value="delivered">Delivered</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-1.5">
+                                                                <Label className="text-[10px] text-muted-foreground">Customer Name</Label>
+                                                                <Input
+                                                                    className="h-8 text-xs"
+                                                                    value={editorData.order.userName}
+                                                                    onChange={(e) => setEditorData(prev => ({ ...prev, order: { ...prev.order, userName: e.target.value } }))}
+                                                                />
+                                                            </div>
+
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-[10px] text-muted-foreground">Total Amount</Label>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-xs text-muted-foreground">₹</span>
+                                                                        <Input
+                                                                            className="h-8 text-xs"
+                                                                            type="number"
+                                                                            value={editorData.order.amount}
+                                                                            onChange={(e) => setEditorData(prev => ({ ...prev, order: { ...prev.order, amount: Number(e.target.value) } }))}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-[10px] text-muted-foreground">Delivery ETA</Label>
+                                                                    <Input
+                                                                        className="h-8 text-xs"
+                                                                        placeholder="15-20 mins"
+                                                                        defaultValue="15-20 mins"
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-2">
+                                                                <Label className="text-[10px] text-muted-foreground">Items Preview</Label>
+                                                                <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                                                                    {editorData.order.items?.map((item: any, idx: number) => (
+                                                                        <div key={idx} className="flex justify-between items-center text-xs">
+                                                                            <span className="text-foreground">{item.qty}x {item.name}</span>
+                                                                            <span className="text-muted-foreground">₹{item.price * item.qty}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                                <p className="text-[9px] text-muted-foreground italic">Item editing coming soon</p>
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                {/* PAYMENT CONTENT EDITOR */}
+                                                {managerCategory === 'payment' && (
+                                                    <>
+                                                        <div className="space-y-4 pt-3 border-t border-border">
+                                                            <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                                                <CreditCard size={10} />
+                                                                Payment Details
+                                                            </Label>
+
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-[10px] text-muted-foreground">Order ID</Label>
+                                                                    <Input
+                                                                        className="h-8 text-xs"
+                                                                        value={editorData.payment.orderId}
+                                                                        onChange={(e) => setEditorData(prev => ({ ...prev, payment: { ...prev.payment, orderId: e.target.value } }))}
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-[10px] text-muted-foreground">Transaction ID</Label>
+                                                                    <Input
+                                                                        className="h-8 text-xs"
+                                                                        placeholder="TXN_12345678"
+                                                                        defaultValue="TXN_12345678"
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-[10px] text-muted-foreground">Amount</Label>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <DollarSign size={12} className="text-green-600" />
+                                                                        <Input
+                                                                            className="h-8 text-xs"
+                                                                            type="number"
+                                                                            value={editorData.payment.amount}
+                                                                            onChange={(e) => setEditorData(prev => ({ ...prev, payment: { ...prev.payment, amount: Number(e.target.value) } }))}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-[10px] text-muted-foreground">Payment Status</Label>
+                                                                    <select
+                                                                        className="w-full h-8 text-xs rounded-md border border-border bg-background px-2"
+                                                                        value={editorData.payment.status}
+                                                                        onChange={(e) => setEditorData(prev => ({ ...prev, payment: { ...prev.payment, status: e.target.value } }))}
+                                                                    >
+                                                                        <option value="Paid">Paid</option>
+                                                                        <option value="Pending">Pending</option>
+                                                                        <option value="Failed">Failed</option>
+                                                                        <option value="Refunded">Refunded</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-1.5">
+                                                                <Label className="text-[10px] text-muted-foreground">Payment Method</Label>
+                                                                <select
+                                                                    className="w-full h-8 text-xs rounded-md border border-border bg-background px-2"
+                                                                    defaultValue="UPI"
+                                                                >
+                                                                    <option value="UPI">UPI</option>
+                                                                    <option value="Credit Card">Credit Card</option>
+                                                                    <option value="Debit Card">Debit Card</option>
+                                                                    <option value="Net Banking">Net Banking</option>
+                                                                    <option value="Wallet">Wallet</option>
+                                                                    <option value="Cash on Delivery">Cash on Delivery</option>
+                                                                </select>
+                                                            </div>
+
+                                                            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                                                                <div className="flex items-center gap-2 text-green-700">
+                                                                    <Check size={14} />
+                                                                    <span className="text-xs font-medium">Receipt will be attached as PDF</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                {/* UPDATE MESSAGE EDITOR */}
                                                 {managerCategory === 'update' && (
                                                     <div className="space-y-2">
                                                         <Label className="text-xs font-medium">Message Body</Label>
@@ -837,8 +1040,14 @@ export default function NotificationCenter() {
                                             <Button size="sm" variant="outline" className="bg-background shadow-lg text-foreground hover:bg-muted" onClick={() => fileInputRef.current?.click()}>
                                                 <Paperclip size={14} className="mr-2" /> Change Banner
                                             </Button>
-                                            <Button size="sm" className="bg-primary text-primary-foreground shadow-lg hover:bg-primary/90" onClick={() => toast.success("Template set as default for " + managerCategory)}>
-                                                <Check size={14} className="mr-2" /> Save Default
+                                            <Button
+                                                size="sm"
+                                                className="bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
+                                                onClick={handleSaveDefault}
+                                                disabled={isSaving}
+                                            >
+                                                {isSaving ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Save size={14} className="mr-2" />}
+                                                {isSaving ? 'Saving...' : 'Save Default'}
                                             </Button>
                                         </div>
                                     </div>
