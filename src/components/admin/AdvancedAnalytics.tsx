@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Download, TrendingUp, Calendar, Package, Star, Clock, DollarSign, BarChart3 } from "lucide-react";
+import { Download, TrendingUp, Calendar, Package, Star, Clock, DollarSign, BarChart3, Users, Eye, Activity, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 
@@ -48,6 +48,74 @@ const AdvancedAnalytics = () => {
   );
   const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]);
   const [selectedCategory, setSelectedCategory] = useState("");
+
+  // Live visitors tracking
+  const [liveVisitors, setLiveVisitors] = useState(0);
+  const [todayVisitors, setTodayVisitors] = useState(0);
+  const [totalPageViews, setTotalPageViews] = useState(0);
+
+  // Fetch live visitors count
+  const fetchVisitorStats = async () => {
+    try {
+      const now = new Date();
+      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+      const todayStart = new Date(now.setHours(0, 0, 0, 0));
+
+      // Live visitors (unique sessions in last 5 minutes)
+      const { data: liveData } = await supabase
+        .from("page_views")
+        .select("session_id")
+        .gte("created_at", fiveMinutesAgo.toISOString());
+
+      const uniqueLiveSessions = new Set(liveData?.map(v => v.session_id) || []);
+      setLiveVisitors(uniqueLiveSessions.size);
+
+      // Today's unique visitors
+      const { data: todayData } = await supabase
+        .from("page_views")
+        .select("session_id")
+        .gte("created_at", todayStart.toISOString());
+
+      const uniqueTodaySessions = new Set(todayData?.map(v => v.session_id) || []);
+      setTodayVisitors(uniqueTodaySessions.size);
+
+      // Total page views in date range
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      const { count } = await supabase
+        .from("page_views")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString());
+
+      setTotalPageViews(count || 0);
+    } catch (error) {
+      console.debug("Visitor stats error:", error);
+    }
+  };
+
+  // Real-time subscription for live visitors
+  useEffect(() => {
+    fetchVisitorStats();
+
+    // Refresh live count every 30 seconds
+    const interval = setInterval(fetchVisitorStats, 30000);
+
+    // Subscribe to real-time page views
+    const channel = supabase
+      .channel("live-visitors")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "page_views" }, () => {
+        fetchVisitorStats();
+      })
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [startDate, endDate]);
 
   useEffect(() => {
     fetchData();
@@ -168,6 +236,13 @@ const AdvancedAnalytics = () => {
     });
     const revenueData = Object.values(dailyRevenue).sort((a, b) => a.date.localeCompare(b.date));
 
+    // Delivery and Cancel rates (from all orders, not just valid)
+    const allOrders = orders;
+    const deliveredCount = allOrders.filter(o => o.status === "delivered").length;
+    const cancelledCount = allOrders.filter(o => o.status === "cancelled").length;
+    const deliveryRate = allOrders.length > 0 ? (deliveredCount / allOrders.length) * 100 : 0;
+    const cancelRate = allOrders.length > 0 ? (cancelledCount / allOrders.length) * 100 : 0;
+
     return {
       totalRevenue,
       totalOrders,
@@ -181,6 +256,8 @@ const AdvancedAnalytics = () => {
       revenueData,
       peakHour: peakHour[0],
       peakHourOrders: peakHour[1],
+      deliveryRate,
+      cancelRate,
     };
   }, [orders, orderItems, products, categories]);
 
@@ -286,8 +363,50 @@ const AdvancedAnalytics = () => {
         </button>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 🟢 LIVE VISITORS - Hero Section */}
+      <div className="glass-card p-6 bg-gradient-to-br from-lime/10 via-transparent to-primary/10 border-lime/20 relative overflow-hidden">
+        <div className="absolute top-4 right-4">
+          <span className="flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-lime"></span>
+          </span>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Live Now */}
+          <div className="text-center md:text-left">
+            <div className="flex items-center gap-2 justify-center md:justify-start mb-2">
+              <Activity size={20} className="text-lime animate-pulse" />
+              <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Live Now</span>
+            </div>
+            <p className="text-5xl md:text-6xl font-bold text-lime">{liveVisitors}</p>
+            <p className="text-sm text-muted-foreground mt-1">visitors in last 5 min</p>
+          </div>
+
+          {/* Today's Visitors */}
+          <div className="text-center">
+            <div className="flex items-center gap-2 justify-center mb-2">
+              <Users size={20} className="text-secondary" />
+              <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Today</span>
+            </div>
+            <p className="text-4xl font-bold text-secondary">{todayVisitors}</p>
+            <p className="text-sm text-muted-foreground mt-1">unique visitors</p>
+          </div>
+
+          {/* Page Views in Range */}
+          <div className="text-center md:text-right">
+            <div className="flex items-center gap-2 justify-center md:justify-end mb-2">
+              <Eye size={20} className="text-primary" />
+              <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Page Views</span>
+            </div>
+            <p className="text-4xl font-bold text-primary">{totalPageViews.toLocaleString()}</p>
+            <p className="text-sm text-muted-foreground mt-1">in selected period</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Key Metrics - Expanded Grid */}
+      <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="glass-card p-4">
           <DollarSign size={20} className="text-lime mb-2" />
           <p className="text-sm text-muted-foreground mb-1">Revenue</p>
@@ -296,7 +415,7 @@ const AdvancedAnalytics = () => {
         </div>
         <div className="glass-card p-4">
           <BarChart3 size={20} className="text-primary mb-2" />
-          <p className="text-sm text-muted-foreground mb-1">Avg Order Value</p>
+          <p className="text-sm text-muted-foreground mb-1">Avg Order</p>
           <p className="text-2xl font-bold">₹{analytics.avgOrderValue.toFixed(0)}</p>
         </div>
         <div className="glass-card p-4">
@@ -309,8 +428,18 @@ const AdvancedAnalytics = () => {
         </div>
         <div className="glass-card p-4">
           <Star size={20} className="text-accent mb-2" />
-          <p className="text-sm text-muted-foreground mb-1">Retention Rate</p>
+          <p className="text-sm text-muted-foreground mb-1">Retention</p>
           <p className="text-2xl font-bold text-secondary">{analytics.retentionRate}%</p>
+        </div>
+        <div className="glass-card p-4">
+          <CheckCircle size={20} className="text-lime mb-2" />
+          <p className="text-sm text-muted-foreground mb-1">Delivery Rate</p>
+          <p className="text-2xl font-bold text-lime">{analytics.deliveryRate.toFixed(1)}%</p>
+        </div>
+        <div className="glass-card p-4">
+          <XCircle size={20} className="text-destructive mb-2" />
+          <p className="text-sm text-muted-foreground mb-1">Cancel Rate</p>
+          <p className="text-2xl font-bold text-destructive">{analytics.cancelRate.toFixed(1)}%</p>
         </div>
       </div>
 
@@ -398,12 +527,11 @@ const AdvancedAnalytics = () => {
               {analytics.topProducts.slice(0, 5).map((product, idx) => (
                 <div key={product.name} className="flex items-center justify-between bg-muted/30 rounded-lg p-3">
                   <div className="flex items-center gap-3">
-                    <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                      idx === 0 ? "bg-lime text-lime-foreground" :
+                    <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${idx === 0 ? "bg-lime text-lime-foreground" :
                       idx === 1 ? "bg-secondary text-secondary-foreground" :
-                      idx === 2 ? "bg-accent text-accent-foreground" :
-                      "bg-muted text-muted-foreground"
-                    }`}>
+                        idx === 2 ? "bg-accent text-accent-foreground" :
+                          "bg-muted text-muted-foreground"
+                      }`}>
                       #{idx + 1}
                     </span>
                     <div>

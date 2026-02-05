@@ -96,6 +96,9 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showStockModal, setShowStockModal] = useState<string | null>(null);
   const [stockInput, setStockInput] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('snackzo_admin_collapsed') === 'true';
+  });
 
   useEffect(() => {
     if (!authLoading) {
@@ -335,9 +338,9 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} stats={stats} />
+      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} stats={stats} onCollapsedChange={setSidebarCollapsed} />
 
-      <main className="flex-1 ml-64 p-8 overflow-y-auto h-screen bg-background/50">
+      <main className={`flex-1 p-8 overflow-y-auto h-screen bg-background/50 transition-all duration-200 ${sidebarCollapsed ? 'ml-[72px]' : 'ml-64'}`}>
         <div className="max-w-7xl mx-auto w-full space-y-6">
 
           {/* Page Header */}
@@ -500,44 +503,8 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Analytics Tab */}
-          {activeTab === "analytics" && (
-            <div className="space-y-6">
-              <div className="grid md:grid-cols-4 gap-4">
-                <div className="glass-card p-4">
-                  <p className="text-sm text-muted-foreground mb-1">Week Revenue</p>
-                  <p className="text-3xl font-bold text-lime">₹{stats.weekRevenue}</p>
-                </div>
-                <div className="glass-card p-4">
-                  <p className="text-sm text-muted-foreground mb-1">Delivery Rate</p>
-                  <p className="text-3xl font-bold text-secondary">{stats.deliveryRate.toFixed(1)}%</p>
-                </div>
-                <div className="glass-card p-4">
-                  <p className="text-sm text-muted-foreground mb-1">Cancel Rate</p>
-                  <p className="text-3xl font-bold text-destructive">{stats.cancelRate.toFixed(1)}%</p>
-                </div>
-                <div className="glass-card p-4">
-                  <p className="text-sm text-muted-foreground mb-1">Repeat Customers</p>
-                  <p className="text-3xl font-bold text-accent">{stats.repeatCustomers}</p>
-                </div>
-              </div>
-
-              {/* Simple Hourly Graph */}
-              <div className="glass-card p-6">
-                <h3 className="font-bold mb-4">Today's Hourly Activity</h3>
-                <div className="flex items-end gap-1 h-32">
-                  {stats.hourlyData.slice(18, 24).concat(stats.hourlyData.slice(0, 4)).map((h, i) => (
-                    <div key={i} className="flex-1 flex flex-col items-center">
-                      <div
-                        className="w-full bg-primary/60 rounded-t hover:bg-primary transition-all"
-                        style={{ height: `${Math.max((h.count / Math.max(...stats.hourlyData.map(x => x.count), 1)) * 100, 5)}%` }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Analytics Tab - Using AdvancedAnalytics component */}
+          {activeTab === "analytics" && <AdvancedAnalytics />}
 
           {/* Alerts Tab */}
           {activeTab === "alerts" && (
@@ -605,7 +572,6 @@ const AdminDashboard = () => {
           {activeTab === "users" && <UserManagement />}
           {activeTab === "products" && <ProductManagement />}
           {activeTab === "categories" && <CategoryManagement />}
-          {activeTab === "advanced-analytics" && <AdvancedAnalytics />}
           {activeTab === "promotions" && <PromotionsDiscounts />}
           {activeTab === "banners" && <BannerManager />}
           {activeTab === "customer-insights" && <CustomerInsights />}

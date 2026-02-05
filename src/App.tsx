@@ -63,12 +63,16 @@ import { AuthTransition } from "@/components/AuthTransition";
 const queryClient = new QueryClient();
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { usePageTracking } from "./hooks/usePageTracking";
 
 const AppRoutes = () => {
   const location = useLocation();
   const { user } = useAuth();
   // Hide global navigation and chat widgets on public form viewer pages
   const isPublicForm = location.pathname.startsWith('/forms/');
+
+  // Track page views for analytics
+  usePageTracking();
 
   return (
     <>

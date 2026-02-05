@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
     Dialog,
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
     MapPin, Search, LocateFixed, Navigation, Home, Briefcase, Plus,
-    ArrowLeft, MoreVertical, MessageCircle, Clock, Trash2, Check, X
+    ArrowLeft, MoreVertical, MessageCircle, Clock, Trash2, Check, X, Share2, RefreshCw, AlertCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -20,12 +20,6 @@ import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from "@/integrations/supabase/client";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 // Leaflet Icons Setup
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -56,6 +50,54 @@ interface UserAddress {
     is_default?: boolean;
 }
 
+interface RecentSearch {
+    id: string;
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+    timestamp: number;
+}
+
+const RECENT_SEARCHES_KEY = 'snackzo_recent_searches';
+const MAX_RECENT_SEARCHES = 5;
+
+// LocalStorage helpers for recent searches
+const getRecentSearches = (): RecentSearch[] => {
+    try {
+        const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch {
+        return [];
+    }
+};
+
+const saveRecentSearch = (search: Omit<RecentSearch, 'id' | 'timestamp'>) => {
+    try {
+        const existing = getRecentSearches();
+        const newSearch: RecentSearch = {
+            ...search,
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            timestamp: Date.now()
+        };
+        // Remove duplicates (same lat/lng)
+        const filtered = existing.filter(s =>
+            Math.abs(s.lat - search.lat) > 0.0001 || Math.abs(s.lng - search.lng) > 0.0001
+        );
+        const updated = [newSearch, ...filtered].slice(0, MAX_RECENT_SEARCHES);
+        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+        return updated;
+    } catch {
+        return [];
+    }
+};
+
+const clearRecentSearches = () => {
+    try {
+        localStorage.removeItem(RECENT_SEARCHES_KEY);
+    } catch { }
+};
+
 // Map Controller
 function MapController({ onMoveEnd, center }: { onMoveEnd: (lat: number, lng: number) => void, center: [number, number] }) {
     const map = useMap();
@@ -72,20 +114,11 @@ function MapController({ onMoveEnd, center }: { onMoveEnd: (lat: number, lng: nu
     return null;
 }
 
-// Quick fix for missing Users icon
+// Users Icon
 const UsersIcon = ({ size, className }: { size?: number, className?: string }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width={size || 24}
-        height={size || 24}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24}
+        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round" className={className}>
         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
@@ -111,35 +144,56 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
     // Data State
     const [savedAddresses, setSavedAddresses] = useState<UserAddress[]>([]);
     const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
+    const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+
+    // Search State
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchError, setSearchError] = useState<string | null>(null);
+
+    // GPS State
+    const [isGettingLocation, setIsGettingLocation] = useState(false);
+    const [gpsError, setGpsError] = useState<string | null>(null);
+
+    // Load recent searches on mount
+    useEffect(() => {
+        setRecentSearches(getRecentSearches());
+    }, []);
 
     // Fetch Addresses
     const fetchAddresses = async () => {
         if (!user) return;
         setIsLoadingAddresses(true);
-        const { data, error } = await supabase
-            .from('user_addresses' as any)
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+        try {
+            const { data, error } = await supabase
+                .from('user_addresses' as any)
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
 
-        if (!error && data) {
-            setSavedAddresses(data as unknown as UserAddress[]);
+            if (!error && data) {
+                setSavedAddresses(data as unknown as UserAddress[]);
+            }
+        } catch (err) {
+            console.error("Failed to fetch addresses:", err);
+        } finally {
+            setIsLoadingAddresses(false);
         }
-        setIsLoadingAddresses(false);
     };
 
     // Reset on open
     useEffect(() => {
         if (isOpen) {
             setView("list");
+            setSearchQuery("");
+            setSearchResults([]);
+            setSearchError(null);
+            setGpsError(null);
             fetchAddresses();
+            setRecentSearches(getRecentSearches());
         }
     }, [isOpen, user]);
-
-    // Search State
-    const [searchQuery, setSearchQuery] = useState("");
-    const [isSearching, setIsSearching] = useState(false);
-    const [searchResults, setSearchResults] = useState<any[]>([]);
 
     // Debounce Search
     useEffect(() => {
@@ -148,6 +202,7 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
                 handleSearch(searchQuery);
             } else {
                 setSearchResults([]);
+                setSearchError(null);
             }
         }, 500);
         return () => clearTimeout(timer);
@@ -155,12 +210,24 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
 
     const handleSearch = async (query: string) => {
         setIsSearching(true);
+        setSearchError(null);
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=in`,
+                {
+                    headers: { 'Accept': 'application/json' }
+                }
+            );
+            if (!response.ok) throw new Error('Search failed');
             const data = await response.json();
             setSearchResults(data);
+            if (data.length === 0) {
+                setSearchError("No results found. Try a different search.");
+            }
         } catch (error) {
             console.error("Search failed:", error);
+            setSearchError("Search failed. Please try again.");
+            setSearchResults([]);
         } finally {
             setIsSearching(false);
         }
@@ -168,7 +235,13 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
 
     const reverseGeocode = async (lat: number, lng: number) => {
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+                {
+                    headers: { 'Accept': 'application/json' }
+                }
+            );
+            if (!response.ok) throw new Error('Geocoding failed');
             const data = await response.json();
             if (data && data.display_name) {
                 const parts = data.display_name.split(',');
@@ -185,85 +258,92 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
             }
         } catch (error) {
             console.error("Reverse geocode failed:", error);
+            setFormattedAddress("Location selected");
         }
     };
 
     const handleSelectSearchResult = (result: any) => {
         const lat = parseFloat(result.lat);
         const lon = parseFloat(result.lon);
+        const name = result.display_name.split(',')[0];
+        const address = result.display_name.split(',').slice(0, 3).join(', ');
+
         setMapCenter([lat, lon]);
-        setFormattedAddress(result.display_name.split(',').slice(0, 3).join(', '));
-        setArea(result.display_name.split(',').slice(0, 3).join(', '));
+        setFormattedAddress(address);
+        setArea(address);
         setSearchResults([]);
         setSearchQuery("");
+
+        // Save to recent searches
+        const updated = saveRecentSearch({ name, address, lat, lng: lon });
+        setRecentSearches(updated);
+
         setView("map");
     };
 
-    const renderSearchInput = (isMap = false) => (
-        <div className={`relative ${isMap ? "flex-1" : "w-full"}`}>
-            <div className="relative group">
-                {!isMap && <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary w-5 h-5 z-10 transition-colors" />}
-                <input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`w-full bg-card/50 border border-white/5 rounded-2xl py-4 pl-12 pr-10 outline-none text-sm font-medium focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-muted-foreground/40 ${isMap ? "h-11 py-0 pl-4 border-none bg-transparent focus:ring-0 text-base" : ""}`}
-                    placeholder={isMap ? "Search location..." : "Search an area or address"}
-                />
-                {isSearching && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                        <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    </div>
-                )}
-                {searchQuery && !isSearching && (
-                    <button
-                        onClick={() => setSearchQuery("")}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/10 rounded-full transition-colors"
-                    >
-                        <X size={16} className="text-muted-foreground" />
-                    </button>
-                )}
-            </div>
+    const handleSelectRecentSearch = (search: RecentSearch) => {
+        setMapCenter([search.lat, search.lng]);
+        setFormattedAddress(search.address);
+        setArea(search.address);
+        setView("map");
+    };
 
-            {searchResults.length > 0 && (
-                <div className={`absolute left-0 right-0 top-full mt-3 bg-card/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[600] overflow-hidden ${isMap ? "w-[90vw] -ml-12 sm:w-[400px]" : ""}`}>
-                    {searchResults.map((result, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => handleSelectSearchResult(result)}
-                            className="w-full text-left p-4 hover:bg-white/5 flex items-start gap-4 border-b border-white/5 last:border-0 transition-all active:scale-[0.98]"
-                        >
-                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                                <MapPin size={20} className="text-primary" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold text-foreground line-clamp-1">{result.display_name.split(',')[0]}</p>
-                                <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{result.display_name}</p>
-                            </div>
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
+    const handleClearRecentSearches = () => {
+        clearRecentSearches();
+        setRecentSearches([]);
+        toast.success("Recent searches cleared");
+    };
 
     const handleGetCurrentLocation = () => {
-        if ("geolocation" in navigator) {
-            toast.info("Accessing GPS...");
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords;
-                    setMapCenter([latitude, longitude]);
-                    reverseGeocode(latitude, longitude);
-                    setView("map");
-                },
-                (error) => {
-                    console.error(error);
-                    toast.error("GPS access denied");
-                    setView("map");
+        if (!("geolocation" in navigator)) {
+            toast.error("GPS not supported on this device");
+            return;
+        }
+
+        setIsGettingLocation(true);
+        setGpsError(null);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                setMapCenter([latitude, longitude]);
+                reverseGeocode(latitude, longitude);
+                setIsGettingLocation(false);
+                setView("map");
+                toast.success("Location found!");
+            },
+            (error) => {
+                setIsGettingLocation(false);
+                let errorMsg = "Unable to get location";
+                switch (error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMsg = "Location permission denied. Please enable in browser settings.";
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMsg = "Location unavailable. Please try again.";
+                        break;
+                    case error.TIMEOUT:
+                        errorMsg = "Location request timed out. Please try again.";
+                        break;
                 }
-            );
+                setGpsError(errorMsg);
+                toast.error(errorMsg);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+    };
+
+    const handleRequestPin = () => {
+        if (navigator.share) {
+            navigator.share({
+                title: 'Share my delivery location',
+                text: `I need help setting my delivery location for Snackzo. Can you share a Google Maps pin?`,
+            }).catch(() => { });
         } else {
-            setView("map");
+            // Fallback: copy a message to clipboard
+            const msg = "I need help setting my delivery location for Snackzo. Can you share a Google Maps pin?";
+            navigator.clipboard.writeText(msg);
+            toast.success("Message copied! Share with someone to get their location pin.");
         }
     };
 
@@ -274,13 +354,24 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
 
     const handleConfirmLocation = () => {
         if (!area) setArea(formattedAddress);
+
+        // Save to recent searches when confirming
+        const name = formattedAddress.split(',')[0];
+        const updated = saveRecentSearch({
+            name,
+            address: formattedAddress,
+            lat: mapCenter[0],
+            lng: mapCenter[1]
+        });
+        setRecentSearches(updated);
+
         setView("details");
     };
 
     const handleSaveNewAddress = async () => {
         if (!user) return;
         if (!houseNo || !area) {
-            toast.error("All fields are required");
+            toast.error("Please fill in all required fields");
             return;
         }
 
@@ -310,6 +401,11 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
 
             toast.success("Address saved successfully!");
             setSavedAddresses(prev => [newAddr as unknown as UserAddress, ...prev]);
+
+            // Reset form
+            setHouseNo("");
+            setDirections("");
+
             onClose();
         } catch (err: any) {
             console.error(err);
@@ -327,7 +423,7 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
                 room_number: addr.house_no,
             });
             if (error) throw error;
-            toast.success(`Active address: ${addr.label}`);
+            toast.success(`Delivering to: ${addr.label}`);
             onClose();
         } catch (err) {
             toast.error("Failed to set address");
@@ -353,13 +449,71 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
         }
     };
 
+    const renderSearchInput = (isMap = false) => (
+        <div className={`relative ${isMap ? "flex-1" : "w-full"}`}>
+            <div className="relative group">
+                {!isMap && <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary w-5 h-5 z-10 transition-colors" />}
+                <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={`w-full bg-card/50 border border-white/5 rounded-2xl py-4 pl-12 pr-10 outline-none text-sm font-medium focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-muted-foreground/40 ${isMap ? "h-11 py-0 pl-4 border-none bg-transparent focus:ring-0 text-base" : ""}`}
+                    placeholder={isMap ? "Search location..." : "Search an area or address"}
+                />
+                {isSearching && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    </div>
+                )}
+                {searchQuery && !isSearching && (
+                    <button
+                        onClick={() => { setSearchQuery(""); setSearchError(null); }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/10 rounded-full transition-colors"
+                    >
+                        <X size={16} className="text-muted-foreground" />
+                    </button>
+                )}
+            </div>
+
+            {/* Search Error */}
+            {searchError && !isSearching && searchQuery.length > 2 && (
+                <div className="absolute left-0 right-0 top-full mt-3 bg-card/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-lg z-[600] p-4">
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                        <AlertCircle size={18} />
+                        <span className="text-sm">{searchError}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+                <div className={`absolute left-0 right-0 top-full mt-3 bg-card/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[600] overflow-hidden ${isMap ? "w-[90vw] -ml-12 sm:w-[400px]" : ""}`}>
+                    {searchResults.map((result, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => handleSelectSearchResult(result)}
+                            className="w-full text-left p-4 hover:bg-white/5 flex items-start gap-4 border-b border-white/5 last:border-0 transition-all active:scale-[0.98]"
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                                <MapPin size={20} className="text-primary" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold text-foreground line-clamp-1">{result.display_name.split(',')[0]}</p>
+                                <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{result.display_name}</p>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose} modal>
             <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden bg-background gap-0 rounded-none sm:rounded-[2rem] h-[100dvh] sm:h-[750px] flex flex-col border-white/5 shadow-[0_50px_100px_rgba(0,0,0,0.8)] outline-none">
                 <DialogTitle className="sr-only">Select Location</DialogTitle>
                 <DialogDescription className="sr-only">Delivering to your doorstep in minutes</DialogDescription>
 
-                {/* ---------------- VIEW: LIST ---------------- */}
+                {/* VIEW: LIST */}
                 {view === "list" && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -382,9 +536,17 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
                         <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-8 scrollbar-none">
                             {/* Quick Actions Grid */}
                             <div className="grid grid-cols-3 gap-3">
-                                <button onClick={handleGetCurrentLocation} className="group flex flex-col items-center justify-center gap-3 p-4 aspect-square bg-card/40 rounded-3xl border border-white/5 hover:border-primary/50 transition-all hover:bg-primary/5 active:scale-95 shadow-lg">
+                                <button
+                                    onClick={handleGetCurrentLocation}
+                                    disabled={isGettingLocation}
+                                    className="group flex flex-col items-center justify-center gap-3 p-4 aspect-square bg-card/40 rounded-3xl border border-white/5 hover:border-primary/50 transition-all hover:bg-primary/5 active:scale-95 shadow-lg disabled:opacity-50"
+                                >
                                     <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
-                                        <LocateFixed size={24} />
+                                        {isGettingLocation ? (
+                                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <LocateFixed size={24} />
+                                        )}
                                     </div>
                                     <span className="text-[11px] font-bold text-center leading-tight uppercase tracking-wider text-muted-foreground group-hover:text-foreground">Current<br />GPS</span>
                                 </button>
@@ -394,14 +556,29 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
                                     </div>
                                     <span className="text-[11px] font-bold text-center leading-tight uppercase tracking-wider text-muted-foreground group-hover:text-foreground">Manual<br />Add</span>
                                 </button>
-                                <button className="group flex flex-col items-center justify-center gap-3 p-4 aspect-square bg-card/40 rounded-3xl border border-white/5 hover:border-secondary/50 transition-all hover:bg-secondary/5 active:scale-95 shadow-lg opacity-50 cursor-not-allowed">
-                                    <div className="w-12 h-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center">
-                                        <MessageCircle size={24} />
+                                <button
+                                    onClick={handleRequestPin}
+                                    className="group flex flex-col items-center justify-center gap-3 p-4 aspect-square bg-card/40 rounded-3xl border border-white/5 hover:border-secondary/50 transition-all hover:bg-secondary/5 active:scale-95 shadow-lg"
+                                >
+                                    <div className="w-12 h-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <Share2 size={24} />
                                     </div>
-                                    <span className="text-[11px] font-bold text-center leading-tight uppercase tracking-wider text-muted-foreground">Request<br />Pin</span>
+                                    <span className="text-[11px] font-bold text-center leading-tight uppercase tracking-wider text-muted-foreground group-hover:text-foreground">Request<br />Pin</span>
                                 </button>
                             </div>
 
+                            {/* GPS Error Alert */}
+                            {gpsError && (
+                                <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-2xl">
+                                    <AlertCircle size={20} className="text-destructive shrink-0" />
+                                    <p className="text-sm text-destructive">{gpsError}</p>
+                                    <button onClick={handleGetCurrentLocation} className="ml-auto p-2 hover:bg-white/10 rounded-xl">
+                                        <RefreshCw size={16} className="text-destructive" />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Saved Addresses */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">Saved Addresses</h3>
@@ -418,6 +595,7 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
                                             <MapPin size={32} className="text-muted-foreground/30" />
                                         </div>
                                         <p className="text-sm font-bold text-muted-foreground">No addresses saved yet.</p>
+                                        <p className="text-xs text-muted-foreground/60">Use GPS or search to add your first address</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
@@ -467,23 +645,42 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
                                 )}
                             </div>
 
-                            <div className="space-y-4">
-                                <h3 className="text-xs font-black text-muted-foreground/60 uppercase tracking-[0.2em]">Recently Searched</h3>
-                                <div className="flex items-center gap-5 p-5 bg-white/5 rounded-[2rem] border border-white/5 opacity-60 hover:opacity-100 transition-all cursor-pointer group">
-                                    <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-primary/20 group-hover:text-primary transition-colors shrink-0">
-                                        <Clock size={22} />
+                            {/* Recently Searched */}
+                            {recentSearches.length > 0 && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xs font-black text-muted-foreground/60 uppercase tracking-[0.2em]">Recently Searched</h3>
+                                        <button
+                                            onClick={handleClearRecentSearches}
+                                            className="text-[10px] font-bold text-muted-foreground hover:text-destructive transition-colors uppercase tracking-wider"
+                                        >
+                                            Clear All
+                                        </button>
                                     </div>
-                                    <div className="min-w-0">
-                                        <h4 className="font-bold text-sm text-foreground truncate uppercase tracking-tight">Chennai Central Railway Station</h4>
-                                        <p className="text-xs font-medium text-muted-foreground truncate italic">Kannappar Thidal, Periamet...</p>
+                                    <div className="space-y-3">
+                                        {recentSearches.map((search) => (
+                                            <button
+                                                key={search.id}
+                                                onClick={() => handleSelectRecentSearch(search)}
+                                                className="w-full flex items-center gap-5 p-5 bg-white/5 rounded-[2rem] border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all cursor-pointer group text-left"
+                                            >
+                                                <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-primary/20 group-hover:text-primary transition-colors shrink-0">
+                                                    <Clock size={22} />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <h4 className="font-bold text-sm text-foreground truncate uppercase tracking-tight">{search.name}</h4>
+                                                    <p className="text-xs font-medium text-muted-foreground truncate italic mt-0.5">{search.address}</p>
+                                                </div>
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </motion.div>
                 )}
 
-                {/* ---------------- VIEW: MAP ---------------- */}
+                {/* VIEW: MAP */}
                 {view === "map" && (
                     <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -520,7 +717,7 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
                                 />
                             </MapContainer>
 
-                            {/* Sniper Target Style Center Pin */}
+                            {/* Center Pin */}
                             <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-[400] pb-[60px]">
                                 <div className="relative flex items-center justify-center">
                                     <div className="w-12 h-12 rounded-full border-2 border-primary/30 animate-ping absolute" />
@@ -532,9 +729,14 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
 
                             <button
                                 onClick={handleGetCurrentLocation}
-                                className="absolute bottom-[320px] right-6 z-[400] w-14 h-14 bg-white text-primary rounded-2xl shadow-2xl flex items-center justify-center active:scale-90 transition-all"
+                                disabled={isGettingLocation}
+                                className="absolute bottom-[320px] right-6 z-[400] w-14 h-14 bg-white text-primary rounded-2xl shadow-2xl flex items-center justify-center active:scale-90 transition-all disabled:opacity-50"
                             >
-                                <LocateFixed size={24} />
+                                {isGettingLocation ? (
+                                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <LocateFixed size={24} />
+                                )}
                             </button>
                         </div>
 
@@ -569,7 +771,7 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
                     </motion.div>
                 )}
 
-                {/* ---------------- VIEW: DETAILS ---------------- */}
+                {/* VIEW: DETAILS */}
                 {view === "details" && (
                     <motion.div
                         initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }}
@@ -600,7 +802,7 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
 
                             <div className="space-y-8">
                                 <div className="space-y-2 group">
-                                    <Label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] group-focus-within:text-lime transition-colors">House / Block / Flat No.</Label>
+                                    <Label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] group-focus-within:text-lime transition-colors">House / Block / Flat No. *</Label>
                                     <Input
                                         value={houseNo}
                                         onChange={e => setHouseNo(e.target.value)}
@@ -610,7 +812,7 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
                                 </div>
 
                                 <div className="space-y-2 group">
-                                    <Label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] group-focus-within:text-lime transition-colors">Area / Locality Name</Label>
+                                    <Label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] group-focus-within:text-lime transition-colors">Area / Locality Name *</Label>
                                     <Input
                                         value={area}
                                         onChange={e => setArea(e.target.value)}
@@ -620,7 +822,7 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
                                 </div>
 
                                 <div className="space-y-3">
-                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Nearby Landmark / Instructions</Label>
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Nearby Landmark / Instructions (Optional)</Label>
                                     <div className="relative">
                                         <textarea
                                             value={directions}
@@ -663,11 +865,16 @@ const AddressSelectorModal = ({ isOpen, onClose }: AddressSelectorModalProps) =>
 
                         <div className="p-6 border-t border-white/5 bg-background/80 backdrop-blur-xl">
                             <Button
-                                className={`w-full h-16 text-lg font-black uppercase tracking-widest rounded-2xl transition-all shadow-2xl ${houseNo ? 'bg-primary text-white shadow-primary/20' : 'bg-white/10 text-white/30 cursor-not-allowed'}`}
+                                className={`w-full h-16 text-lg font-black uppercase tracking-widest rounded-2xl transition-all shadow-2xl ${houseNo && area ? 'bg-primary text-white shadow-primary/20' : 'bg-white/10 text-white/30 cursor-not-allowed'}`}
                                 onClick={handleSaveNewAddress}
-                                disabled={isSaving || !houseNo}
+                                disabled={isSaving || !houseNo || !area}
                             >
-                                {isSaving ? "TRANSMITTING..." : "Deliver Here"}
+                                {isSaving ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        SAVING...
+                                    </div>
+                                ) : "Deliver Here"}
                             </Button>
                         </div>
                     </motion.div>
